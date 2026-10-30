@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08110b">
+  <title>Scam Shield | UPI payment safety check</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+    :root { color-scheme: light; --ink: #17241d; --muted: #65736b; --line: #dce2d9; --paper: #f6f7f2; --white: #fff; --green: #176b4a; --green-soft: #e4f2e9; --amber: #a45b08; --amber-soft: #fff1d9; --red: #b1362d; --red-soft: #fae9e5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .topbar { height: 66px; padding: 0 max(24px, calc((100% - 1120px)/2)); border-bottom: 1px solid var(--line); display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.72); }
+    .brand { display:flex; align-items:center; gap:11px; font:700 19px 'Space Grotesk',sans-serif; letter-spacing:0; }
+    .brand-mark { width:32px; height:32px; background:var(--green); color:#fff; display:grid; place-items:center; border-radius:8px; font-size:18px; }
+    .live { display:flex; align-items:center; gap:8px; color:var(--green); font:500 12px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:0; }
+    .live-dot { width:8px; height:8px; border-radius:50%; background:#26a269; box-shadow:0 0 0 4px #dcefe2; }
+    main { max-width:1120px; margin:0 auto; padding:46px 24px 60px; }
+    .intro { display:flex; justify-content:space-between; align-items:end; gap:28px; margin-bottom:30px; animation:rise .45s ease both; }
+    .eyebrow { color:var(--green); font:500 12px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.08em; }
+    h1 { margin:9px 0 8px; font:600 36px/1.12 'Space Grotesk',sans-serif; letter-spacing:0; }
+    .intro p { color:var(--muted); margin:0; font-size:15px; }
+    .privacy { max-width:250px; padding:12px 14px; border-left:2px solid #83b69a; color:#53645a; font-size:12px; line-height:1.55; }
+    .layout { display:grid; grid-template-columns:minmax(0, 1.15fr) minmax(310px, .85fr); gap:22px; align-items:start; }
+    .panel { background:var(--white); border:1px solid var(--line); border-radius:8px; animation:rise .5s .06s ease both; }
+    .panel-head { padding:19px 21px 0; display:flex; justify-content:space-between; align-items:center; }
+    .panel-head h2 { margin:0; font:600 17px 'Space Grotesk',sans-serif; letter-spacing:0; }
+    .step { color:#8b978e; font:12px 'DM Mono',monospace; }
+    .tabs { display:flex; gap:5px; padding:18px 20px 0; border-bottom:1px solid var(--line); }
+    .tab { color:var(--muted); background:none; border:0; border-bottom:2px solid transparent; padding:0 11px 12px; font-size:13px; font-weight:600; }
+    .tab[aria-selected="true"] { color:var(--green); border-color:var(--green); }
+    .form-area { padding:20px; }
+    .field { margin-bottom:17px; }
+    label { display:block; margin-bottom:7px; color:#33433a; font-size:12px; font-weight:700; }
+    .field-hint { float:right; color:#8a968e; font-weight:400; }
+    input, textarea { display:block; width:100%; border:1px solid #cfd8cf; border-radius:6px; background:#fff; color:var(--ink); padding:12px 13px; outline:none; transition:border .16s, box-shadow .16s; }
+    input:focus, textarea:focus { border-color:#4c9870; box-shadow:0 0 0 3px #e3f1e7; }
+    textarea { min-height:130px; resize:vertical; line-height:1.55; }
+    input::placeholder, textarea::placeholder { color:#a0aaa2; }
+    .scan-actions { display:flex; flex-wrap:wrap; gap:9px; }
+    .primary, .secondary { min-height:42px; border-radius:6px; padding:0 15px; font-size:13px; font-weight:700; }
+    .primary { border:1px solid var(--green); background:var(--green); color:#fff; }
+    .primary:hover { background:#10563b; }
+    .secondary { border:1px solid var(--line); background:white; color:#36483d; }
+    .secondary:hover { background:#f4f7f3; }
+    .camera-wrap { margin-top:14px; }
+    video { display:none; width:100%; max-height:260px; background:#17241d; border-radius:6px; }
+    .scan-note { color:var(--muted); font-size:12px; line-height:1.5; margin:11px 0 0; }
+    .result-panel { position:sticky; top:20px; animation:rise .55s .12s ease both; }
+    .result-top { padding:20px 21px; border-bottom:1px solid var(--line); }
+    .result-kicker { color:var(--muted); font:11px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; }
+    .status-row { display:flex; align-items:center; gap:12px; margin-top:14px; }
+    .status-icon { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; background:#edf0eb; color:#77837a; font-size:19px; flex:none; }
+    .status-copy h2 { margin:0 0 3px; font:600 19px 'Space Grotesk',sans-serif; letter-spacing:0; }
+    .status-copy p { margin:0; color:var(--muted); font-size:12px; }
+    .meter { height:6px; background:#edf0eb; border-radius:10px; margin-top:19px; overflow:hidden; }
+    .meter-fill { width:0; height:100%; background:#718077; border-radius:10px; transition:width .25s ease, background .25s ease; }
+    .score-row { display:flex; justify-content:space-between; margin-top:7px; color:var(--muted); font:11px 'DM Mono',monospace; }
+    .signals { min-height:130px; padding:18px 21px; }
+    .signals h3 { margin:0 0 11px; font:600 12px 'Space Grotesk',sans-serif; text-transform:uppercase; letter-spacing:.04em; }
+    .signals ul { list-style:none; margin:0; padding:0; }
+    .signals li { position:relative; margin:9px 0; padding-left:19px; color:#49574e; font-size:12px; line-height:1.5; }
+    .signals li::before { content:'!'; position:absolute; left:0; top:0; width:14px; height:14px; border-radius:50%; text-align:center; font:700 10px/14px 'DM Mono',monospace; color:var(--amber); background:var(--amber-soft); }
+    .empty { color:#77837a; font-size:12px; line-height:1.6; }
+    .result-foot { padding:14px 21px; background:#f8faf7; border-top:1px solid var(--line); color:#718077; font-size:11px; line-height:1.55; }
+    .emergency { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:18px; padding:13px 15px; background:#fff; border:1px solid var(--line); border-radius:7px; }
+    .emergency strong { display:block; font-size:12px; }
+    .emergency span { color:var(--muted); font-size:11px; }
+    .emergency a { flex:none; color:var(--red); text-decoration:none; font:600 12px 'DM Mono',monospace; }
+    .disclaimer { margin:20px 2px 0; color:#88948b; font-size:11px; line-height:1.6; }
+    .hidden { display:none !important; }
+    .risk-caution .status-icon { color:var(--amber); background:var(--amber-soft); }
+    .risk-caution .meter-fill { background:#d99631; }
+    .risk-high .status-icon { color:var(--red); background:var(--red-soft); }
+    .risk-high .meter-fill { background:#c24a3e; }
+    .risk-low .status-icon { color:var(--green); background:var(--green-soft); }
+    .risk-low .meter-fill { background:#329468; }
+    @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @media (max-width:760px) { main { padding:32px 16px 42px; } .topbar { padding:0 16px; } .intro { align-items:start; flex-direction:column; gap:15px; } h1 { font-size:30px; } .privacy { max-width:none; } .layout { grid-template-columns:1fr; } .result-panel { position:static; } }
+    @media (max-width:420px) { .tabs { padding-left:12px; padding-right:12px; } .tab { padding-left:8px; padding-right:8px; font-size:12px; } .form-area { padding:16px; } .panel-head { padding-left:16px; padding-right:16px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+    :root { color-scheme:dark; --ink:#f2f6ec; --muted:#a9b8a9; --line:rgba(205,232,198,.16); --paper:#08110b; --white:#101b12; --green:#baff59; --green-soft:rgba(186,255,89,.13); --amber:#f4bd58; --amber-soft:rgba(244,189,88,.13); --red:#ff796b; --red-soft:rgba(255,121,107,.13); }
+    body { background:radial-gradient(ellipse at 77% 42%, #163b23 0%, #0b1b10 35%, #07100a 72%); color:var(--ink); overflow-x:hidden; }
+    body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.19; background-image:linear-gradient(rgba(191,232,176,.10) 1px, transparent 1px),linear-gradient(90deg,rgba(191,232,176,.10) 1px,transparent 1px); background-size:64px 64px; mask-image:linear-gradient(90deg,transparent 4%,#000 55%,#000); }
+    #scene { position:fixed; inset:0; z-index:0; display:block; width:100%; height:100%; pointer-events:none; opacity:.78; }
+    .topbar, main { position:relative; z-index:1; }
+    .topbar { height:72px; padding:0 max(28px,calc((100% - 1220px)/2)); border-bottom:1px solid rgba(205,232,198,.13); background:rgba(7,16,10,.53); backdrop-filter:blur(16px); }
+    .brand { color:#f2f6ec; font-size:17px; }
+    .brand-mark { width:34px; height:34px; color:#0a160b; background:#baff59; border-radius:10px; box-shadow:0 0 24px rgba(186,255,89,.2); }
+    .live { color:#cbf69b; font-size:10px; }
+    .live-dot { background:#baff59; box-shadow:0 0 0 4px rgba(186,255,89,.12); }
+    main { max-width:1220px; padding:46px 28px 56px; }
+    .intro { align-items:center; margin-bottom:27px; }
+    .eyebrow { color:#c7f489; font-size:10px; letter-spacing:.13em; }
+    h1 { margin:10px 0 9px; color:#f4f7ed; font-size:clamp(34px,4vw,48px); line-height:1.04; }
+    .intro p { color:#b5c3b4; font-size:14px; }
+    .privacy { max-width:270px; border-left-color:#baff59; color:#c2d0c0; font-size:11px; }
+    .layout { grid-template-columns:minmax(0,1.08fr) minmax(310px,.82fr); gap:18px; }
+    .panel { border:1px solid rgba(222,239,213,.19); border-radius:10px; box-shadow:0 24px 80px rgba(0,0,0,.24); animation:rise .55s ease both; }
+    .layout > .panel:first-child { color:#172319; background:rgba(246,249,239,.97); border-color:rgba(255,255,255,.55); box-shadow:0 28px 90px rgba(0,0,0,.26); }
+    .panel-head { padding:20px 22px 0; }
+    .panel-head h2 { color:#142116; font-size:18px; }
+    .step { color:#728071; }
+    .tabs { gap:3px; border-color:#dbe4d7; }
+    .tab { color:#667469; }
+    .tab[aria-selected="true"] { color:#255c30; border-color:#3b8739; }
+    label { color:#354438; }
+    .field-hint { color:#879386; }
+    input, textarea { color:#17241a; border-color:#d1dbcf; background:#fff; }
+    input:focus, textarea:focus { border-color:#508e45; box-shadow:0 0 0 3px rgba(80,142,69,.13); }
+    input::placeholder, textarea::placeholder { color:#9aa69a; }
+    .scan-note { color:#69766a; }
+    .primary { color:#12210f; border-color:#a6e947; background:#baff59; }
+    .primary:hover { background:#a8eb48; }
+    .secondary { color:#364638; border-color:#d3ded0; background:#fff; }
+    .secondary:hover { background:#f0f5eb; }
+    .result-panel { background:rgba(10,24,13,.69); border-color:rgba(205,232,198,.2); backdrop-filter:blur(9px); }
+    .result-top { border-color:rgba(205,232,198,.15); }
+    .result-kicker { color:#b9d1b3; font-size:10px; letter-spacing:.12em; }
+    .status-icon { color:#d5e0d1; background:rgba(218,237,211,.1); }
+    .status-copy h2 { color:#f4f7ed; }
+    .status-copy p, .score-row { color:#b4c3b2; }
+    .meter { background:rgba(211,232,202,.13); }
+    .meter-fill { background:#82947d; }
+    .signals h3 { color:#d9e7d4; }
+    .signals li { color:#d0dccd; }
+    .signals li::before { color:#f4bd58; background:rgba(244,189,88,.14); }
+    .empty { color:#aab9a8; }
+    .result-foot { color:#aab9a8; border-color:rgba(205,232,198,.15); background:rgba(255,255,255,.035); }
+    .risk-caution .status-icon { color:#f4bd58; background:rgba(244,189,88,.14); }
+    .risk-high .status-icon { color:#ff796b; background:rgba(255,121,107,.14); }
+    .risk-low .status-icon { color:#baff59; background:rgba(186,255,89,.13); }
+    .emergency { border-color:rgba(255,121,107,.25); background:rgba(48,22,17,.75); }
+    .emergency strong { color:#f5eee7; }
+    .emergency span { color:#c8b7aa; }
+    .emergency a { color:#ff9182; }
+    .disclaimer { color:#99aa98; }
+    @media (max-width:760px) { main { padding:34px 16px 42px; } .topbar { padding:0 16px; } .intro { margin-bottom:22px; } h1 { font-size:34px; } .layout { grid-template-columns:minmax(0,1fr); } #scene { opacity:.28; } body::before { opacity:.12; } }
+    @media (max-width:420px) { .topbar { height:62px; } .live { font-size:9px; } .tabs { overflow-x:auto; } .tab { white-space:nowrap; } }
+    .topbar-tools { display:flex; align-items:center; gap:20px; }
+    .language-switch { display:flex; align-items:center; gap:8px; margin:0; color:#bfceba; font:500 10px 'DM Mono',monospace; text-transform:uppercase; white-space:nowrap; }
+    .language-switch select { width:auto; min-width:105px; border:1px solid rgba(205,232,198,.25); border-radius:6px; padding:8px 24px 8px 10px; color:#eff6e8; background:#101e13; font-size:12px; }
+    .language-switch select:focus { outline:2px solid #baff59; outline-offset:2px; }
+    @media (max-width:760px) { .topbar-tools { gap:0; } .live { display:none; } .language-switch span { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; } }
+    @media (max-width:420px) { .language-switch select { min-width:92px; padding-left:8px; } }
+    .help-open { min-height:36px; display:inline-flex; align-items:center; gap:8px; padding:0 10px; border:1px solid rgba(205,232,198,.23); border-radius:6px; color:#e7f0e2; background:rgba(255,255,255,.035); font-size:12px; font-weight:600; white-space:nowrap; }
+    .help-open:hover { background:rgba(255,255,255,.09); }
+    .help-icon { width:18px; height:18px; display:grid; place-items:center; border:1px solid rgba(186,255,89,.55); border-radius:50%; color:#c8f589; font:600 12px 'DM Mono',monospace; }
+    .help-dialog { width:min(620px,calc(100vw - 32px)); max-width:none; max-height:min(82vh,760px); overflow:auto; padding:0; border:1px solid rgba(205,232,198,.2); border-radius:10px; color:#eaf1e6; background:#101b12; box-shadow:0 30px 100px rgba(0,0,0,.55); }
+    .help-dialog::backdrop { background:rgba(2,8,4,.72); backdrop-filter:blur(6px); }
+    .help-dialog[open] { animation:rise .2s ease both; }
+    .help-head { position:sticky; top:0; z-index:1; display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:22px 24px 16px; border-bottom:1px solid rgba(205,232,198,.14); background:rgba(16,27,18,.96); backdrop-filter:blur(12px); }
+    .help-kicker { color:#baff59; font:500 10px 'DM Mono',monospace; text-transform:uppercase; }
+    .help-head h2 { margin:6px 0 0; color:#f2f6ec; font:600 22px 'Space Grotesk',sans-serif; }
+    .help-close { width:34px; height:34px; display:grid; place-items:center; flex:none; border:1px solid rgba(205,232,198,.2); border-radius:6px; color:#eaf1e6; background:transparent; font-size:20px; line-height:1; }
+    .help-close:hover { background:rgba(255,255,255,.08); }
+    .help-content { padding:18px 24px 22px; }
+    .help-lede { margin:0 0 15px; color:#b7c5b4; font-size:13px; line-height:1.55; }
+    .help-guides { border-top:1px solid rgba(205,232,198,.12); }
+    .help-guides details { border-bottom:1px solid rgba(205,232,198,.12); }
+    .help-guides summary { padding:13px 2px; color:#edf4e9; font-size:13px; font-weight:700; cursor:pointer; }
+    .help-guides details p { margin:0; padding:0 12px 14px 2px; color:#b8c5b5; font-size:12px; line-height:1.6; }
+    .help-score { margin-top:19px; }
+    .help-score h3, .help-safety h3 { margin:0 0 10px; color:#dce9d7; font:600 13px 'Space Grotesk',sans-serif; }
+    .help-risk-row { display:grid; grid-template-columns:104px 1fr; gap:12px; padding:9px 0; border-top:1px solid rgba(205,232,198,.1); font-size:12px; line-height:1.5; }
+    .help-risk-row strong { color:#dce9d7; }
+    .help-risk-row span { color:#b8c5b5; }
+    .help-risk-row.low strong { color:#baff59; }
+    .help-risk-row.caution strong { color:#f4bd58; }
+    .help-risk-row.high strong { color:#ff9182; }
+    .help-safety { margin-top:18px; padding:13px 14px; border-left:2px solid #baff59; background:rgba(186,255,89,.06); }
+    .help-safety p { margin:0; color:#c4d1c1; font-size:12px; line-height:1.55; }
+    .help-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; padding-top:14px; border-top:1px solid rgba(205,232,198,.14); }
+    .help-footer p { margin:0; color:#bac7b7; font-size:12px; line-height:1.5; }
+    .help-footer a { flex:none; color:#ff9182; font:600 12px 'DM Mono',monospace; text-decoration:none; }
+    @media (max-width:760px) { .topbar-tools { gap:8px; } .help-open { width:36px; justify-content:center; padding:0; } .help-open > span:last-child { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; } .help-dialog { max-height:88vh; } .help-head { padding:18px 18px 14px; } .help-content { padding:15px 18px 18px; } }
+    @media (max-width:420px) { .help-risk-row { grid-template-columns:90px 1fr; gap:8px; } }
+    .assistant-open { min-height:36px; display:inline-flex; align-items:center; gap:8px; padding:0 10px; border:1px solid rgba(186,255,89,.35); border-radius:6px; color:#e7f0e2; background:rgba(186,255,89,.08); font-size:12px; font-weight:600; white-space:nowrap; }
+    .assistant-open:hover { background:rgba(186,255,89,.15); }
+    .assistant-mark { display:grid; place-items:center; min-width:20px; height:18px; padding:0 3px; border-radius:4px; color:#10200f; background:#baff59; font:700 9px 'DM Mono',monospace; }
+    .chat-dialog { width:min(460px,calc(100vw - 28px)); height:min(680px,calc(100vh - 32px)); max-width:none; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; padding:0; border:1px solid rgba(205,232,198,.2); border-radius:10px; color:#eaf1e6; background:#101b12; box-shadow:0 30px 100px rgba(0,0,0,.55); }
+    .chat-dialog:not([open]) { display:none; }
+    .chat-dialog::backdrop { background:rgba(2,8,4,.72); backdrop-filter:blur(6px); }
+    .chat-dialog[open] { animation:rise .2s ease both; }
+    .chat-head { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px 20px; border-bottom:1px solid rgba(205,232,198,.14); background:#101b12; }
+    .chat-head h2 { margin:5px 0 0; color:#f2f6ec; font:600 19px 'Space Grotesk',sans-serif; }
+    .chat-kicker { color:#baff59; font:500 9px 'DM Mono',monospace; text-transform:uppercase; }
+    .chat-close { width:34px; height:34px; display:grid; place-items:center; flex:none; border:1px solid rgba(205,232,198,.2); border-radius:6px; color:#eaf1e6; background:transparent; font-size:20px; line-height:1; }
+    .chat-close:hover { background:rgba(255,255,255,.08); }
+    .chat-notice { margin:0; padding:11px 20px; border-bottom:1px solid rgba(205,232,198,.1); color:#b8c5b5; background:rgba(186,255,89,.045); font-size:10px; line-height:1.55; }
+    .chat-log { flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding:18px 16px; }
+    .chat-message { max-width:88%; padding:10px 12px; border:1px solid rgba(205,232,198,.13); border-radius:8px; font-size:12px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .chat-message.assistant { align-self:flex-start; color:#dce8d8; background:rgba(255,255,255,.055); }
+    .chat-message.user { align-self:flex-end; color:#10200f; border-color:rgba(186,255,89,.55); background:#baff59; }
+    .chat-status { min-height:18px; padding:0 16px; color:#f4bd58; font-size:11px; }
+    .chat-form { display:grid; grid-template-columns:minmax(0,1fr) 76px; gap:9px; padding:12px 16px 16px; border-top:1px solid rgba(205,232,198,.14); }
+    .chat-form textarea { min-height:62px; max-height:130px; margin:0; resize:vertical; border-color:rgba(205,232,198,.2); color:#f2f6ec; background:#09120b; font-size:12px; }
+    .chat-form textarea:focus { border-color:#baff59; box-shadow:0 0 0 3px rgba(186,255,89,.1); }
+    .chat-form textarea::placeholder { color:#839385; }
+    .chat-send { min-height:42px; align-self:end; border:1px solid #baff59; border-radius:6px; color:#10200f; background:#baff59; font-size:12px; font-weight:700; }
+    .chat-send:hover { background:#c9ff7c; }
+    .chat-send:disabled { cursor:wait; opacity:.65; }
+    .screen-reader-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .floating-tools { position:fixed; right:18px; bottom:max(18px,env(safe-area-inset-bottom)); z-index:20; display:flex; flex-direction:column; gap:9px; padding:8px; border:1px solid rgba(205,232,198,.17); border-radius:12px; background:rgba(8,18,10,.78); box-shadow:0 10px 32px rgba(0,0,0,.32); backdrop-filter:blur(12px); }
+    .floating-tools button { width:46px; height:46px; min-height:46px; display:grid; place-items:center; padding:0; border:1px solid rgba(205,232,198,.2); border-radius:9px; color:#e7f0e2; background:#142218; transition:transform .16s ease,background .16s ease,border-color .16s ease; }
+    .floating-tools button:hover { transform:translateY(-2px); background:#203627; border-color:rgba(205,232,198,.4); }
+    .floating-tools button:focus-visible { outline:2px solid #baff59; outline-offset:3px; }
+    .floating-tools .help-icon { width:23px; height:23px; color:#baff59; border-color:rgba(186,255,89,.55); font-size:14px; }
+    .floating-tools .reviews-mark { width:24px; height:24px; display:grid; place-items:center; color:#f4bd58; font-size:20px; line-height:1; }
+    .floating-tools .assistant-mark { width:25px; height:22px; color:#12210f; background:#baff59; font-size:10px; }
+    .floating-label { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width:760px) { .floating-tools { right:12px; bottom:max(14px,env(safe-area-inset-bottom)); gap:8px; padding:6px; } .floating-tools button { width:44px; height:44px; min-height:44px; } }
+    @media (prefers-reduced-motion:reduce) { .floating-tools button { transition:none; } }
+    .reviews-dialog { width:min(820px,calc(100vw - 32px)); }
+    .reviews-dialog .reviews-section { max-width:none; margin:0; padding:0; border:0; }
+    .reviews-dialog .reviews-header { margin-bottom:18px; }
+    .reviews-dialog .reviews-grid { grid-template-columns:minmax(230px,.8fr) minmax(0,1.2fr); gap:26px; }
+    .reviews-dialog .review-form { padding-right:22px; }
+    @media (max-width:760px) { .reviews-dialog { max-height:88vh; } .reviews-dialog .help-head { padding:18px 18px 14px; } .reviews-dialog .help-content { padding:16px 18px 20px; } .reviews-dialog .reviews-grid { grid-template-columns:1fr; gap:20px; } .reviews-dialog .review-form { padding:0 0 18px; border-right:0; border-bottom:1px solid rgba(205,232,198,.14); } }
+    .social-footer { max-width:1220px; display:flex; align-items:center; justify-content:space-between; gap:18px; margin:0 auto; padding:16px 28px 28px; border-top:1px solid rgba(205,232,198,.13); }
+    .social-copy { color:#b5c3b4; font-size:11px; line-height:1.55; }
+    .social-copy strong { display:block; margin-bottom:2px; color:#e4eee0; font-size:12px; }
+    .social-links { display:flex; align-items:center; gap:8px; }
+    .social-links a { min-width:36px; height:36px; display:grid; place-items:center; border:1px solid rgba(205,232,198,.2); border-radius:7px; color:#e4eee0; background:rgba(255,255,255,.035); font:600 14px 'DM Sans',sans-serif; text-decoration:none; transition:background .15s,border-color .15s,transform .15s; }
+    .social-links a:hover { transform:translateY(-2px); border-color:rgba(186,255,89,.45); background:rgba(186,255,89,.1); }
+    .social-links a:focus-visible { outline:2px solid #baff59; outline-offset:3px; }
+    @media (max-width:760px) { .social-footer { padding:15px 16px 24px; } }
+    @media (max-width:420px) { .social-footer { align-items:flex-start; flex-direction:column; gap:12px; } }
+    @media (max-width:760px) { .assistant-open { width:36px; justify-content:center; padding:0; } .assistant-open > span:last-child { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; } .chat-dialog { width:calc(100vw - 20px); height:min(690px,calc(100vh - 20px)); max-height:94vh; } .chat-head { padding:15px 16px; } .chat-notice { padding:10px 16px; } }
+    .reviews-section { max-width:1220px; margin:0 auto 54px; padding:25px 28px 0; border-top:1px solid rgba(205,232,198,.16); }
+    .reviews-header { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:22px; }
+    .review-kicker { color:#c7f489; font:500 10px 'DM Mono',monospace; text-transform:uppercase; }
+    .reviews-header h2 { margin:6px 0 5px; color:#f2f6ec; font:600 23px 'Space Grotesk',sans-serif; }
+    .reviews-header p { margin:0; color:#aebcac; font-size:12px; }
+    .reviews-summary { min-width:118px; text-align:right; }
+    .reviews-summary strong { color:#f4f7ed; font:600 30px 'Space Grotesk',sans-serif; }
+    .reviews-summary > span { color:#f4bd58; font-size:13px; }
+    .reviews-summary p { margin-top:3px; color:#aebcac; font-size:11px; }
+    .reviews-grid { display:grid; grid-template-columns:minmax(250px,.78fr) minmax(0,1.22fr); gap:34px; }
+    .review-form { padding-right:28px; border-right:1px solid rgba(205,232,198,.14); }
+    .review-form fieldset { margin:0 0 16px; padding:0; border:0; }
+    .review-form legend, .review-form > label, .review-list h3 { margin-bottom:9px; color:#e4eee0; font-size:12px; font-weight:700; }
+    .rating-stars { display:flex; align-items:center; gap:5px; }
+    .rating-choice { position:relative; width:34px; height:36px; display:grid; place-items:center; margin:0; cursor:pointer; }
+    .rating-choice input { position:absolute; width:1px; height:1px; margin:0; opacity:0; }
+    .rating-choice span[aria-hidden] { color:#788878; font-size:25px; line-height:1; transition:color .12s,transform .12s; }
+    .rating-choice input:checked + span[aria-hidden], .rating-choice:hover span[aria-hidden] { color:#f4bd58; transform:translateY(-1px); }
+    .rating-choice input:focus-visible + span[aria-hidden] { outline:2px solid #baff59; outline-offset:3px; }
+    .review-form > label { display:block; }
+    .review-form textarea { min-height:86px; margin:0; resize:vertical; border-color:rgba(205,232,198,.22); color:#f2f6ec; background:#0b160d; font-size:12px; }
+    .review-form textarea:focus { border-color:#baff59; box-shadow:0 0 0 3px rgba(186,255,89,.1); }
+    .review-form textarea::placeholder { color:#859485; }
+    .review-note { margin:8px 0 13px; color:#9eae9d; font-size:10px; line-height:1.55; }
+    .review-submit { min-height:38px; }
+    .review-status { min-height:18px; margin:9px 0 0; color:#c9e6a3; font-size:11px; }
+    .review-list h3 { margin-top:0; }
+    .review-empty { margin:0; color:#aebcac; font-size:12px; line-height:1.6; }
+    .review-item { padding:12px 0; border-top:1px solid rgba(205,232,198,.12); }
+    .review-item-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .review-item-rating { color:#f4bd58; font:600 12px 'DM Mono',monospace; }
+    .review-item time { color:#879789; font:10px 'DM Mono',monospace; }
+    .review-item p { margin:7px 0 0; color:#c3d0c0; font-size:12px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+    @media (max-width:760px) { .reviews-section { padding:22px 16px 0; } .reviews-grid { grid-template-columns:1fr; gap:22px; } .review-form { padding:0 0 20px; border-right:0; border-bottom:1px solid rgba(205,232,198,.14); } .reviews-header { align-items:flex-start; } .reviews-summary { min-width:80px; } }
+    @media (max-width:420px) { .reviews-header h2 { font-size:20px; } .reviews-summary strong { font-size:26px; } }
+    .form-area .reviews-section { max-width:none; margin:0; padding:0; border:0; }
+    .form-area .review-kicker { color:#176b4a; }
+    .form-area .reviews-header h2, .form-area .reviews-summary strong { color:#17241d; }
+    .form-area .reviews-header p, .form-area .reviews-summary p { color:#65736b; }
+    .form-area .reviews-summary > span { color:#a45b08; }
+    .form-area .reviews-grid { grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr); gap:22px; }
+    .form-area .review-form { border-color:#dce2d9; }
+    .form-area .review-form legend, .form-area .review-form > label, .form-area .review-list h3 { color:#33433a; }
+    .form-area .rating-choice span[aria-hidden] { color:#a0aaa2; }
+    .form-area .rating-choice input:checked + span[aria-hidden], .form-area .rating-choice:hover span[aria-hidden] { color:#a45b08; }
+    .form-area .rating-choice input:focus-visible + span[aria-hidden] { outline-color:#176b4a; }
+    .form-area .review-form textarea { border-color:#cfd8cf; color:#17241d; background:#fff; }
+    .form-area .review-form textarea::placeholder { color:#a0aaa2; }
+    .form-area .review-note, .form-area .review-item time { color:#718077; }
+    .form-area .review-status { color:#176b4a; }
+    .form-area .review-empty, .form-area .review-item p { color:#49574e; }
+    .form-area .review-item { border-color:#dce2d9; }
+    @media (max-width:760px) { .form-area .reviews-grid { grid-template-columns:1fr; gap:22px; } }
+    .auth-screen { position:fixed; inset:0; z-index:3; display:flex; flex-direction:column; min-height:100vh; padding:0 max(28px,calc((100% - 1220px)/2)); background:linear-gradient(105deg,rgba(6,14,8,.95) 0%,rgba(6,14,8,.82) 43%,rgba(6,14,8,.25) 100%); }
+    .auth-header { display:flex; align-items:center; justify-content:space-between; min-height:74px; border-bottom:1px solid rgba(205,232,198,.13); }
+    .auth-layout { flex:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(340px,440px); align-items:center; gap:clamp(34px,8vw,112px); padding:44px 0 64px; }
+    .auth-copy { max-width:510px; animation:rise .65s .08s ease both; }
+    .auth-eyebrow { color:#c7f489; font:500 10px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.13em; }
+    .auth-copy h1 { max-width:500px; margin:15px 0 14px; color:#f4f7ed; font:600 clamp(38px,5vw,62px)/1.02 'Space Grotesk',sans-serif; }
+    .auth-copy p { max-width:420px; margin:0; color:#b5c3b4; font-size:15px; line-height:1.7; }
+    .auth-points { display:flex; flex-wrap:wrap; gap:10px 19px; margin-top:28px; color:#d5e4d1; font-size:12px; }
+    .auth-points span::before { content:'+'; margin-right:7px; color:#baff59; font:500 14px 'DM Mono',monospace; }
+    .auth-form-panel { padding:30px; border:1px solid rgba(222,239,213,.2); border-radius:10px; background:rgba(12,26,15,.78); box-shadow:0 28px 90px rgba(0,0,0,.32); backdrop-filter:blur(16px); animation:rise .6s .16s ease both; }
+    .auth-form-panel h2 { margin:0 0 7px; color:#f4f7ed; font:600 23px 'Space Grotesk',sans-serif; }
+    .auth-form-intro { margin:0 0 24px; color:#b4c3b2; font-size:13px; line-height:1.55; }
+    .auth-form-panel label { margin-bottom:8px; color:#e0e9dc; }
+    .auth-form-panel input { margin-bottom:17px; border-color:rgba(205,232,198,.22); color:#f2f6ec; background:rgba(5,14,8,.7); }
+    .auth-form-panel input::placeholder { color:#839385; }
+    .auth-form-panel input:focus { border-color:#baff59; box-shadow:0 0 0 3px rgba(186,255,89,.12); }
+    .auth-submit { width:100%; min-height:46px; display:flex; justify-content:center; align-items:center; gap:10px; margin-top:4px; border:1px solid #baff59; border-radius:6px; color:#12210f; background:#baff59; font-size:13px; font-weight:700; transition:transform .18s ease,background .18s ease; }
+    .auth-submit:hover { transform:translateY(-2px); background:#c9ff7c; }
+    .auth-submit:disabled { cursor:wait; }
+    .auth-submit.is-loading { color:#eff6e8; border-color:rgba(205,232,198,.24); background:rgba(186,255,89,.12); }
+    .auth-spinner { width:15px; height:15px; border:2px solid rgba(239,246,232,.28); border-top-color:#baff59; border-radius:50%; animation:spin .7s linear infinite; }
+    .auth-disclaimer { margin:17px 0 0; color:#9eae9d; font-size:11px; line-height:1.55; text-align:center; }
+    .auth-divider { display:flex; align-items:center; gap:12px; margin:18px 0; color:#829281; font:10px 'DM Mono',monospace; text-transform:uppercase; }
+    .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:rgba(205,232,198,.14); }
+    .auth-guest { width:100%; min-height:42px; border:1px solid rgba(205,232,198,.2); border-radius:6px; color:#e5eee0; background:transparent; font-size:12px; font-weight:600; }
+    .auth-guest:hover { background:rgba(255,255,255,.06); }
+    .auth-screen.is-exiting { opacity:0; transform:scale(1.025); pointer-events:none; transition:opacity .42s ease,transform .52s cubic-bezier(.2,.7,.2,1); }
+    .auth-screen[hidden] { display:none; }
+    .app-shell[hidden] { display:none; }
+    .app-shell.is-entering { animation:appEnter .62s cubic-bezier(.2,.7,.2,1) both; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes appEnter { from { opacity:0; transform:translateY(14px) scale(.99); filter:blur(4px); } to { opacity:1; transform:translateY(0) scale(1); filter:blur(0); } }
+    @media (max-width:760px) { .auth-screen { padding:0 18px; background:linear-gradient(180deg,rgba(6,14,8,.88),rgba(6,14,8,.9)); } .auth-header { min-height:66px; } .auth-layout { grid-template-columns:1fr; gap:23px; align-content:center; padding:26px 0 38px; } .auth-copy { max-width:520px; } .auth-copy h1 { max-width:430px; margin:10px 0 8px; font-size:38px; } .auth-copy p { font-size:13px; } .auth-points { gap:8px 14px; margin-top:15px; font-size:11px; } .auth-form-panel { width:min(100%,480px); justify-self:center; padding:23px; } }
+    @media (max-width:420px) { .auth-screen { padding:0 15px; } .auth-copy h1 { font-size:34px; } .auth-points { display:none; } .auth-layout { gap:19px; } .auth-form-panel { padding:20px; } }
+    @media (max-height:700px) and (min-width:761px) { .auth-layout { padding:24px 0; } .auth-copy h1 { font-size:44px; } .auth-form-panel { padding:23px; } }
+    @media (prefers-reduced-motion:reduce) { .auth-spinner { animation-duration:1.8s; } .auth-screen.is-exiting { transition-duration:.01ms; } .app-shell.is-entering { animation-duration:.01ms; } }
+    /* ---------- accounts: sign in / create account + settings ---------- */
+    .auth-form-panel [hidden], .settings-dialog [hidden] { display:none !important; }
+    .auth-mode { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin:0 0 16px; padding:4px; border:1px solid rgba(205,232,198,.16); border-radius:8px; background:rgba(5,14,8,.55); }
+    .auth-mode button { min-height:36px; border:0; border-radius:6px; color:#b4c3b2; background:transparent; font-size:12px; font-weight:700; }
+    .auth-mode button:hover { color:#eff6e8; }
+    .auth-mode button[aria-selected="true"] { color:#12210f; background:#baff59; }
+    .auth-mode button:focus-visible { outline:2px solid #baff59; outline-offset:2px; }
+    .auth-screen { overflow-y:auto; overscroll-behavior:contain; }
+    .auth-error { min-height:0; margin:-8px 0 12px; color:#ff9182; font-size:12px; line-height:1.5; }
+    .settings-dialog { width:min(520px,calc(100vw - 32px)); }
+    .settings-section { padding:0 0 18px; }
+    .settings-form { margin-top:4px; padding-top:18px; border-top:1px solid rgba(205,232,198,.12); }
+    .settings-dialog h3 { margin:0 0 10px; color:#dce9d7; font:600 14px 'Space Grotesk',sans-serif; }
+    .settings-line { margin:0 0 12px; color:#b8c5b5; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+    .settings-line strong { display:block; margin-top:2px; color:#f2f6ec; font-size:14px; }
+    .settings-dialog label { color:#e0e9dc; }
+    .settings-dialog input { margin-bottom:15px; border-color:rgba(205,232,198,.22); color:#f2f6ec; background:#0b160d; }
+    .settings-dialog input:focus { border-color:#baff59; box-shadow:0 0 0 3px rgba(186,255,89,.1); }
+    .settings-dialog .secondary { color:#e5eee0; border-color:rgba(205,232,198,.22); background:transparent; }
+    .settings-dialog .secondary:hover { background:rgba(255,255,255,.06); }
+    .settings-status { min-height:0; margin:-8px 0 12px; color:#ff9182; font-size:12px; line-height:1.5; }
+    .settings-status.is-success { color:#baff59; }
+  </style>
+</head>
+<body>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <section class="auth-screen" id="authScreen" aria-labelledby="auth-title">
+    <header class="auth-header">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">S</span> Scam Shield</div>
+      <label class="language-switch"><span>Language</span><select id="entryLanguageSelect" aria-label="Language"><option value="en">English</option><option value="hi">हिन्दी</option><option value="pa">ਪੰਜਾਬੀ</option></select></label>
+    </header>
+    <div class="auth-layout">
+      <div class="auth-copy">
+        <div class="auth-eyebrow">Payment safety / India</div>
+        <h1 id="auth-title">A safer moment before every payment.</h1>
+        <p>Check UPI IDs, messages, links, and QR codes before you approve a transaction.</p>
+        <div class="auth-points"><span>Local-first checks</span><span>No PIN or OTP needed</span></div>
+      </div>
+      <form class="auth-form-panel" id="authForm">
+        <h2>Welcome to Scam Shield</h2>
+        <div class="auth-mode" role="tablist" aria-label="Account">
+          <button type="button" role="tab" id="modeSignIn" aria-selected="true">Sign in</button>
+          <button type="button" role="tab" id="modeSignUp" aria-selected="false">Create account</button>
+        </div>
+        <p class="auth-form-intro" id="authIntro">Sign in to manage your account, or continue as a guest.</p>
+        <label for="authEmail">Email address</label>
+        <input id="authEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="authPassword">Password</label>
+        <input id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="Your password" required maxlength="128">
+        <div id="confirmWrap" hidden>
+          <label for="authConfirm">Confirm password</label>
+          <input id="authConfirm" name="confirm" type="password" autocomplete="new-password" placeholder="Type the password again" maxlength="128">
+        </div>
+        <p class="auth-error" id="authError" role="alert"></p>
+        <button class="auth-submit" id="authSubmit" type="submit"><span id="authSubmitLabel">Sign in</span></button>
+        <p class="auth-disclaimer">Your password is stored as a secure hash on this Scam Shield server. Never use your bank, UPI or email password here.</p>
+        <div class="auth-divider">or</div>
+        <button class="auth-guest" id="guestContinue" type="button">Continue as guest</button>
+      </form>
+    </div>
+  </section>
+  <div class="app-shell" id="appShell" hidden inert aria-hidden="true">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">S</span> Scam Shield</div>
+    <div class="topbar-tools">
+      <div class="live"><span class="live-dot"></span> Live local analysis</div>
+      <button class="help-open" id="settingsOpen" type="button" aria-haspopup="dialog" aria-controls="settingsDialog"><span class="help-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+      <label class="language-switch"><span>Language</span><select id="languageSelect" aria-label="Language"><option value="en">English</option><option value="hi">हिन्दी</option><option value="pa">ਪੰਜਾਬੀ</option></select></label>
+    </div>
+  </header>
+  <main>
+    <section class="intro">
+      <div><div class="eyebrow">Payment safety / India</div><h1>Pay with your eyes open.</h1><p>Spot common UPI fraud signals before you approve a payment.</p></div>
+      <div class="privacy">Your checks run in this browser. Never enter your UPI PIN or OTP here.</div>
+    </section>
+    <div class="layout">
+      <section class="panel" aria-labelledby="check-title">
+        <div class="panel-head"><h2 id="check-title">Check a payment</h2><span class="step">01 / INSPECT</span></div>
+        <div class="tabs" role="tablist" aria-label="What would you like to check?">
+          <button class="tab" type="button" role="tab" id="tab-upi" aria-controls="pane-upi" aria-selected="true" data-tab="upi">UPI ID</button>
+          <button class="tab" type="button" role="tab" id="tab-message" aria-controls="pane-message" aria-selected="false" data-tab="message">Message</button>
+          <button class="tab" type="button" role="tab" id="tab-link" aria-controls="pane-link" aria-selected="false" data-tab="link">Payment link</button>
+          <button class="tab" type="button" role="tab" id="tab-qr" aria-controls="pane-qr" aria-selected="false" data-tab="qr">QR code</button>
+        </div>
+        <div class="form-area">
+          <div id="pane-upi" role="tabpanel" aria-labelledby="tab-upi">
+            <div class="field"><label for="upi">Recipient UPI ID <span class="field-hint">Example: name@bank</span></label><input id="upi" autocomplete="off" placeholder="Enter the UPI ID shown in your payment app"></div>
+            <div class="field"><label for="amount">Payment amount <span class="field-hint">Optional</span></label><input id="amount" inputmode="decimal" placeholder="₹ 0.00"></div>
+            <p class="scan-note">Compare the recipient name shown by your UPI app with the person or business you intend to pay. A valid-looking handle does not prove identity.</p>
+          </div>
+          <div id="pane-message" role="tabpanel" aria-labelledby="tab-message" class="hidden">
+            <div class="field"><label for="message">Suspicious SMS, WhatsApp, or call transcript</label><textarea id="message" placeholder="Paste the message here. Remove personal details first."></textarea></div>
+            <p class="scan-note">We look for common pressure tactics, credential requests, collect requests, and payment redirection.</p>
+          </div>
+          <div id="pane-link" role="tabpanel" aria-labelledby="tab-link" class="hidden">
+            <div class="field"><label for="link">Payment or verification link</label><input id="link" inputmode="url" autocomplete="off" placeholder="https://example.com"></div>
+            <p class="scan-note">Do not open an unexpected payment or KYC link. This check is offline and cannot confirm a site's reputation.</p>
+          </div>
+          <div id="pane-qr" role="tabpanel" aria-labelledby="tab-qr" class="hidden">
+            <div class="field"><label for="qrFile">Choose QR image</label><input id="qrFile" type="file" accept="image/*"></div>
+            <div class="scan-actions"><button class="primary" id="cameraStart" type="button">Use camera</button><button class="secondary hidden" id="cameraStop" type="button">Stop camera</button></div>
+            <video id="camera" playsinline muted></video><canvas id="qrCanvas" class="hidden"></canvas>
+            <p class="scan-note">Camera access requires HTTPS or localhost. A QR payment request may send money from your account; scanning never receives money for you.</p>
+          </div>
+        </div>
+      </section>
+      <aside>
+        <section class="panel result-panel" id="resultPanel" aria-live="polite" aria-atomic="true">
+          <div class="result-top">
+            <div class="result-kicker">Real-time assessment</div>
+            <div class="status-row"><div class="status-icon" id="statusIcon" aria-hidden="true">—</div><div class="status-copy"><h2 id="statusTitle">Ready to check</h2><p id="statusText">Enter payment details to begin.</p></div></div>
+            <div class="meter" role="meter" aria-label="Heuristic risk score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="meter-fill" id="meterFill"></div></div>
+            <div class="score-row"><span>Heuristic risk score</span><span id="scoreText">— / 100</span></div>
+          </div>
+          <div class="signals"><h3>Signals to review</h3><div id="signals" class="empty">Add a UPI ID, message, link, or QR code. You will see findings here as you type.</div></div>
+          <div class="result-foot">A low score is not a guarantee of safety. Always verify the recipient and amount in your own UPI app before entering your PIN.</div>
+        </section>
+        <div class="emergency"><div><strong>Already lost money?</strong><span>Report cyber financial fraud in India immediately.</span></div><a href="tel:1930">Call 1930</a></div>
+        <p class="disclaimer">Scam Shield uses local pattern checks only. It does not connect to banks, verify account ownership, block transactions, or provide a live fraud database.</p>
+      </aside>
+    </div>
+  </main>
+  <footer class="social-footer">
+    <div class="social-copy"><strong>Find Scam Shield</strong><span>Demo links · replace with official accounts</span></div>
+    <nav class="social-links" aria-label="Social media demo links">
+      <a href="https://example.com/scam-shield/instagram" target="_blank" rel="noopener noreferrer" aria-label="Instagram demo link" title="Instagram · demo link"><span aria-hidden="true">◎</span></a>
+      <a href="https://example.com/scam-shield/facebook" target="_blank" rel="noopener noreferrer" aria-label="Facebook demo link" title="Facebook · demo link"><span aria-hidden="true">f</span></a>
+      <a href="https://example.com/scam-shield/x" target="_blank" rel="noopener noreferrer" aria-label="X demo link" title="X · demo link"><span aria-hidden="true">𝕏</span></a>
+      <a href="https://example.com/scam-shield/youtube" target="_blank" rel="noopener noreferrer" aria-label="YouTube demo link" title="YouTube · demo link"><span aria-hidden="true">▶</span></a>
+    </nav>
+  </footer>
+  <nav class="floating-tools" aria-label="Quick help">
+    <button id="reviewsOpen" type="button" aria-haspopup="dialog" aria-controls="reviewsDialog" aria-label="User reviews" title="User reviews"><span class="reviews-mark" aria-hidden="true">★</span><span class="floating-label">User reviews</span></button>
+    <button id="helpOpen" type="button" aria-haspopup="dialog" aria-controls="helpDialog" aria-label="Help desk" title="Help desk"><span class="help-icon" aria-hidden="true">?</span><span class="floating-label">Help desk</span></button>
+    <button id="assistantOpen" type="button" aria-haspopup="dialog" aria-controls="chatDialog" aria-label="Ask AI" title="Ask AI"><span class="assistant-mark" aria-hidden="true">AI</span><span class="floating-label">Ask AI</span></button>
+  </nav>
+  <dialog class="help-dialog reviews-dialog" id="reviewsDialog" aria-labelledby="reviewsTitle">
+    <div class="help-head">
+      <div><div class="help-kicker">Community feedback</div><h2 id="reviewsTitle">User reviews</h2></div>
+      <button class="help-close" id="reviewsClose" type="button" aria-label="Close reviews">×</button>
+    </div>
+    <div class="help-content">
+      <section class="reviews-section">
+        <header class="reviews-header">
+          <div><p>Share what helped or what could be clearer.</p></div>
+          <div class="reviews-summary"><strong id="reviewAverage">—</strong><span aria-hidden="true"> / 5</span><p id="reviewCount">0 reviews</p></div>
+        </header>
+        <div class="reviews-grid">
+          <form class="review-form" id="reviewForm">
+            <fieldset>
+              <legend>Rate your experience</legend>
+              <div class="rating-stars" role="radiogroup" aria-label="Your rating">
+                <label class="rating-choice"><input type="radio" name="rating" value="1" required><span aria-hidden="true">★</span><span class="screen-reader-only">1 star</span></label>
+                <label class="rating-choice"><input type="radio" name="rating" value="2"><span aria-hidden="true">★</span><span class="screen-reader-only">2 stars</span></label>
+                <label class="rating-choice"><input type="radio" name="rating" value="3"><span aria-hidden="true">★</span><span class="screen-reader-only">3 stars</span></label>
+                <label class="rating-choice"><input type="radio" name="rating" value="4"><span aria-hidden="true">★</span><span class="screen-reader-only">4 stars</span></label>
+                <label class="rating-choice"><input type="radio" name="rating" value="5"><span aria-hidden="true">★</span><span class="screen-reader-only">5 stars</span></label>
+              </div>
+            </fieldset>
+            <label for="reviewComment">Write a review <span>(optional)</span></label>
+            <textarea id="reviewComment" maxlength="500" placeholder="What worked or could be clearer?"></textarea>
+            <p class="review-note">Reviews are anonymous and publicly visible. Don't include personal or financial details.</p>
+            <button class="primary review-submit" type="submit">Submit review</button>
+            <p class="review-status" id="reviewStatus" aria-live="polite"></p>
+          </form>
+          <section class="review-list" aria-labelledby="recentReviewsTitle">
+            <h3 id="recentReviewsTitle">Recent reviews</h3>
+            <div id="reviewList" aria-live="polite"><p class="review-empty">No reviews yet. Be the first to share feedback.</p></div>
+          </section>
+        </div>
+      </section>
+    </div>
+  </dialog>
+  <dialog class="help-dialog" id="helpDialog" aria-labelledby="helpTitle">
+    <div class="help-head">
+      <div><div class="help-kicker">Scam Shield support</div><h2 id="helpTitle">Help desk</h2></div>
+      <button class="help-close" id="helpClose" type="button" aria-label="Close help desk">×</button>
+    </div>
+    <div class="help-content">
+      <p class="help-lede">Choose the tab that matches what you received. Paste only the details needed for a check.</p>
+      <div class="help-guides">
+        <details open><summary>Check a UPI ID</summary><p>Enter the recipient’s UPI ID exactly as shown in your payment app. You can add the amount too. Compare the payee name in your UPI app before paying.</p></details>
+        <details><summary>Review a message</summary><p>Paste a suspicious SMS or chat. Remove phone numbers, OTPs, and other personal details first.</p></details>
+        <details><summary>Inspect a payment link</summary><p>Paste the full URL here. The check looks for URL patterns only; it does not open the link or verify the website.</p></details>
+        <details><summary>Scan a QR code</summary><p>Upload a QR image or use your camera. A payment QR can send money. Scanning does not receive money, and you never need to share a PIN or OTP.</p></details>
+      </div>
+      <section class="help-score">
+        <h3>Understand the risk score</h3>
+        <div class="help-risk-row low"><strong>0-24 · Low</strong><span>No obvious pattern found. This is not a safety guarantee.</span></div>
+        <div class="help-risk-row caution"><strong>25-54 · Caution</strong><span>Pause and verify the recipient or request through a trusted channel.</span></div>
+        <div class="help-risk-row high"><strong>55-100 · High risk</strong><span>Do not proceed until you have independently confirmed the request.</span></div>
+      </section>
+      <section class="help-safety"><h3>Protect your account</h3><p>Never share your UPI PIN, OTP, password, or CVV. The checker runs in this browser and does not need these details.</p></section>
+      <div class="help-footer"><p>Lost money? Report cyber financial fraud in India immediately.</p><a href="tel:1930">Call 1930</a></div>
+    </div>
+  </dialog>
+  <dialog class="help-dialog settings-dialog" id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="help-head">
+      <div><div class="help-kicker">Account</div><h2 id="settingsTitle">Settings</h2></div>
+      <button class="help-close" id="settingsClose" type="button" aria-label="Close settings">×</button>
+    </div>
+    <div class="help-content">
+      <section class="settings-section">
+        <h3>Your account</h3>
+        <div id="accountSignedIn" hidden>
+          <p class="settings-line"><span>Signed in as</span> <strong id="accountEmail"></strong></p>
+          <button class="secondary" id="signOutBtn" type="button">Sign out</button>
+        </div>
+        <div id="accountGuest">
+          <p class="settings-line">You are using Scam Shield as a guest. Create an account or sign in to manage a password.</p>
+          <button class="secondary" id="settingsSignInBtn" type="button">Sign in or create account</button>
+        </div>
+      </section>
+      <form class="settings-form" id="passwordForm" hidden novalidate>
+        <h3>Change password</h3>
+        <label for="pwCurrent">Current password</label>
+        <input id="pwCurrent" type="password" autocomplete="current-password" maxlength="128" required>
+        <label for="pwNew">New password <span class="field-hint">At least 8 characters</span></label>
+        <input id="pwNew" type="password" autocomplete="new-password" maxlength="128" required>
+        <label for="pwConfirm">Confirm new password</label>
+        <input id="pwConfirm" type="password" autocomplete="new-password" maxlength="128" required>
+        <p class="settings-status" id="pwStatus" role="status" aria-live="polite"></p>
+        <button class="primary" id="pwSubmit" type="submit">Update password</button>
+      </form>
+    </div>
+  </dialog>
+  <dialog class="chat-dialog" id="chatDialog" aria-labelledby="chatTitle">
+    <div class="chat-head">
+      <div><div class="chat-kicker">AI payment-safety guide</div><h2 id="chatTitle">Ask the AI guide</h2></div>
+      <button class="chat-close" id="chatClose" type="button" aria-label="Close AI chat">×</button>
+    </div>
+    <p class="chat-notice">Your question and the current score/status are sent to OpenAI. Don’t include a PIN, OTP, password, CVV, or personal bank details.</p>
+    <div class="chat-log" id="chatMessages" role="log" aria-live="polite" aria-relevant="additions">
+      <div class="chat-message assistant">Hi! Ask me what a warning means or how to check a payment safely.</div>
+    </div>
+    <p class="chat-status" id="chatStatus" aria-live="polite"></p>
+    <form class="chat-form" id="chatForm">
+      <label class="screen-reader-only" for="chatInput">Your question</label>
+      <textarea id="chatInput" rows="2" maxlength="1200" placeholder="Type your question..." required></textarea>
+      <button class="chat-send" id="chatSend" type="submit">Send</button>
+    </form>
+  </dialog>
+  </div>
+  <script>
+    const tabs = Array.from(document.querySelectorAll('[data-tab]'));
+    const panes = ['upi', 'message', 'link', 'qr'];
+    const resultPanel = document.getElementById('resultPanel');
+    let activeTab = 'upi';
+    let stream = null;
+    let scanFrame = null;
+    let lastQrText = '';
+    let currentLanguage = 'en';
+    let sharedScamEntries = [];
+    let sharedScamClient = null;
+    const textSources = new WeakMap();
+    const attributeSources = new WeakMap();
+    const translations = {
+      hi: {
+        'Scam Shield | UPI payment safety check':'Scam Shield | UPI भुगतान सुरक्षा जाँच', 'Live local analysis':'स्थानीय विश्लेषण सक्रिय', 'Live shared analysis':'साझा लाइव डेटाबेस जाँच', 'Language':'भाषा', 'Payment safety / India':'भुगतान सुरक्षा / भारत',
+        'Find Scam Shield':'Scam Shield से जुड़ें', 'Demo links · replace with official accounts':'डेमो लिंक · आधिकारिक खातों से बदलें', 'Social media demo links':'सोशल मीडिया डेमो लिंक',
+        'Instagram demo link':'Instagram डेमो लिंक', 'Facebook demo link':'Facebook डेमो लिंक', 'X demo link':'X डेमो लिंक', 'YouTube demo link':'YouTube डेमो लिंक',
+        'Reviews':'समीक्षाएँ', 'Community feedback':'समुदाय की राय', 'User reviews':'उपयोगकर्ता समीक्षाएँ', 'Close reviews':'समीक्षाएँ बंद करें', 'Share what helped or what could be clearer.':'बताएँ कि क्या मददगार रहा या क्या और स्पष्ट हो सकता है।',
+        'review':'समीक्षा', 'reviews':'समीक्षाएँ', 'Rate your experience':'अपना अनुभव रेट करें', 'Your rating':'आपकी रेटिंग', '1 star':'1 स्टार', '2 stars':'2 स्टार', '3 stars':'3 स्टार', '4 stars':'4 स्टार', '5 stars':'5 स्टार',
+        'Write a review':'समीक्षा लिखें', '(optional)':'(वैकल्पिक)', 'What worked or could be clearer?':'क्या अच्छा लगा या क्या और स्पष्ट हो सकता है?',
+        'Reviews are anonymous and publicly visible. Don\'t include personal or financial details.':'समीक्षाएँ गुमनाम हैं और सार्वजनिक रूप से दिखाई देंगी। निजी या वित्तीय जानकारी न लिखें।', 'Submit review':'समीक्षा भेजें', 'Recent reviews':'हाल की समीक्षाएँ',
+        'No reviews yet. Be the first to share feedback.':'अभी कोई समीक्षा नहीं है। पहली राय साझा करें।', 'Rating only':'केवल रेटिंग',
+        'This UPI ID appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.':'यह UPI ID साझा धोखाधड़ी-रिपोर्ट डेटाबेस में है ({reports} रिपोर्ट)। अलग से पुष्टि करें और केवल इस नतीजे के आधार पर भुगतान न करें।',
+        'This domain appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.':'यह डोमेन साझा धोखाधड़ी-रिपोर्ट डेटाबेस में है ({reports} रिपोर्ट)। अलग से पुष्टि करें और केवल इस नतीजे के आधार पर भुगतान न करें।',
+        'This phone number appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.':'यह फ़ोन नंबर साझा धोखाधड़ी-रिपोर्ट डेटाबेस में है ({reports} रिपोर्ट)। अलग से पुष्टि करें और केवल इस नतीजे के आधार पर भुगतान न करें।',
+        'Review submitted. Thanks for your feedback.':'समीक्षा भेज दी गई। आपकी राय के लिए धन्यवाद।', 'Could not submit your review. Try again.':'समीक्षा नहीं भेजी जा सकी। फिर कोशिश करें।',
+        'Could not load reviews.':'समीक्षाएँ लोड नहीं हो सकीं।', 'Please choose a rating from 1 to 5.':'1 से 5 तक की रेटिंग चुनें।',
+        'Ask AI':'AI से पूछें', 'AI payment-safety guide':'AI भुगतान-सुरक्षा सहायक', 'Ask the AI guide':'AI सहायक से पूछें', 'Close AI chat':'AI चैट बंद करें',
+        'Your question and the current score/status are sent to OpenAI. Don’t include a PIN, OTP, password, CVV, or personal bank details.':'आपका सवाल और मौजूदा स्कोर/स्थिति OpenAI को भेजे जाते हैं। PIN, OTP, पासवर्ड, CVV या बैंक की निजी जानकारी न भेजें।',
+        'Hi! Ask me what a warning means or how to check a payment safely.':'नमस्ते! किसी चेतावनी का मतलब पूछें या भुगतान सुरक्षित रूप से जाँचना सीखें।', 'Type your question...':'अपना सवाल लिखें...', 'Send':'भेजें', 'Thinking...':'जवाब तैयार हो रहा है...',
+        'The AI service is not configured on the server. Set OPENAI_API_KEY and try again.':'सर्वर पर AI सेवा सेट नहीं है। OPENAI_API_KEY सेट करके फिर कोशिश करें।',
+        'You have sent several questions quickly. Please wait a minute and try again.':'आपने कम समय में कई सवाल भेजे हैं। एक मिनट रुककर फिर कोशिश करें।',
+        'The AI assistant is temporarily unavailable. Try again shortly.':'AI सहायक अभी उपलब्ध नहीं है। थोड़ी देर बाद फिर कोशिश करें।', 'Please enter a question first.':'पहले अपना सवाल लिखें।',
+        'Help desk':'सहायता केंद्र', 'Close help desk':'सहायता केंद्र बंद करें', 'Scam Shield support':'Scam Shield सहायता',
+        'Choose the tab that matches what you received. Paste only the details needed for a check.':'आपको जो मिला है उसके अनुसार टैब चुनें। जाँच के लिए केवल ज़रूरी जानकारी पेस्ट करें।',
+        'Check a UPI ID':'UPI ID की जाँच करें', 'Enter the recipient’s UPI ID exactly as shown in your payment app. You can add the amount too. Compare the payee name in your UPI app before paying.':'प्राप्तकर्ता की UPI ID अपने भुगतान ऐप में दिखाई गई तरह ही डालें। चाहें तो राशि भी जोड़ें। भुगतान से पहले UPI ऐप में प्राप्तकर्ता का नाम मिलाएँ।',
+        'Review a message':'संदेश की जाँच करें', 'Paste a suspicious SMS or chat. Remove phone numbers, OTPs, and other personal details first.':'संदिग्ध SMS या चैट पेस्ट करें। पहले फ़ोन नंबर, OTP और अन्य निजी जानकारी हटा दें।',
+        'Inspect a payment link':'भुगतान लिंक जाँचें', 'Paste the full URL here. The check looks for URL patterns only; it does not open the link or verify the website.':'पूरा URL यहाँ पेस्ट करें। यह जाँच केवल URL पैटर्न देखती है; लिंक नहीं खोलती और वेबसाइट की पुष्टि नहीं करती।',
+        'Scan a QR code':'QR कोड स्कैन करें', 'Upload a QR image or use your camera. A payment QR can send money. Scanning does not receive money, and you never need to share a PIN or OTP.':'QR छवि अपलोड करें या कैमरा इस्तेमाल करें। भुगतान QR से पैसे जा सकते हैं। स्कैन करने से पैसे नहीं मिलते और PIN या OTP साझा करने की ज़रूरत नहीं होती।',
+        'Understand the risk score':'जोखिम स्कोर समझें', '0-24 · Low':'0-24 · कम', 'No obvious pattern found. This is not a safety guarantee.':'कोई स्पष्ट पैटर्न नहीं मिला। यह सुरक्षा की गारंटी नहीं है।',
+        '25-54 · Caution':'25-54 · सावधानी', 'Pause and verify the recipient or request through a trusted channel.':'रुकें और भरोसेमंद माध्यम से प्राप्तकर्ता या अनुरोध की पुष्टि करें।',
+        '55-100 · High risk':'55-100 · उच्च जोखिम', 'Do not proceed until you have independently confirmed the request.':'अनुरोध की अलग से पुष्टि होने तक आगे न बढ़ें।',
+        'Protect your account':'अपना खाता सुरक्षित रखें', 'Never share your UPI PIN, OTP, password, or CVV. The checker runs in this browser and does not need these details.':'अपना UPI PIN, OTP, पासवर्ड या CVV कभी साझा न करें। जाँच इसी ब्राउज़र में होती है और इन विवरणों की ज़रूरत नहीं है।',
+        'Lost money? Report cyber financial fraud in India immediately.':'पैसे खो गए? भारत में साइबर वित्तीय धोखाधड़ी की तुरंत रिपोर्ट करें।',
+        'A safer moment before every payment.':'हर भुगतान से पहले एक सुरक्षित पल।', 'Check UPI IDs, messages, links, and QR codes before you approve a transaction.':'लेन-देन मंज़ूर करने से पहले UPI ID, संदेश, लिंक और QR कोड जाँचें।',
+        'Local-first checks':'स्थानीय जाँच', 'No PIN or OTP needed':'PIN या OTP की ज़रूरत नहीं', 'Welcome to Scam Shield':'Scam Shield में आपका स्वागत है',
+        'Preview access to your payment safety checker.':'भुगतान सुरक्षा जाँच का पूर्वावलोकन।', 'Email address':'ईमेल पता', 'Password':'पासवर्ड',
+        'Enter any password':'कोई भी पासवर्ड डालें', 'Continue to checker':'जाँच शुरू करें', 'Opening your checker...':'आपकी जाँच खोली जा रही है...',
+        'Demo sign-in only. There are no user accounts; these fields are not sent or saved.':'यह केवल डेमो साइन-इन है। कोई उपयोगकर्ता खाता नहीं है; ये विवरण भेजे या सहेजे नहीं जाते।',
+        'or':'या', 'Continue as guest':'अतिथि के रूप में जारी रखें',
+        'Pay with your eyes open.':'सतर्क होकर भुगतान करें।', 'Spot common UPI fraud signals before you approve a payment.':'भुगतान मंज़ूर करने से पहले UPI धोखाधड़ी के संकेत पहचानें।',
+        'Your checks run in this browser. Never enter your UPI PIN or OTP here.':'आपकी जाँच इसी ब्राउज़र में होती है। यहाँ कभी भी अपना UPI PIN या OTP न डालें।',
+        'Check a payment':'भुगतान की जाँच करें', '01 / INSPECT':'01 / जाँचें', 'Message':'संदेश', 'Payment link':'भुगतान लिंक', 'QR code':'QR कोड',
+        'Recipient UPI ID':'प्राप्तकर्ता की UPI ID', 'Example: name@bank':'उदाहरण: name@bank', 'Payment amount':'भुगतान राशि', 'Optional':'वैकल्पिक',
+        'Enter the UPI ID shown in your payment app':'अपने भुगतान ऐप में दिखाई गई UPI ID डालें',
+        'Compare the recipient name shown by your UPI app with the person or business you intend to pay. A valid-looking handle does not prove identity.':'अपने UPI ऐप में दिख रहे प्राप्तकर्ता के नाम का उस व्यक्ति या व्यवसाय से मिलान करें जिसे आप भुगतान करना चाहते हैं। सही दिखने वाली ID पहचान का प्रमाण नहीं है।',
+        'Suspicious SMS, WhatsApp, or call transcript':'संदिग्ध SMS, WhatsApp संदेश या कॉल का विवरण', 'Paste the message here. Remove personal details first.':'संदेश यहाँ पेस्ट करें। पहले निजी जानकारी हटा दें।',
+        'We look for common pressure tactics, credential requests, collect requests, and payment redirection.':'हम दबाव बनाने, गोपनीय जानकारी माँगने, कलेक्ट अनुरोध और भुगतान का रास्ता बदलने जैसे संकेत देखते हैं।',
+        'Payment or verification link':'भुगतान या सत्यापन लिंक', 'Do not open an unexpected payment or KYC link. This check is offline and cannot confirm a site’s reputation.':'अनजान भुगतान या KYC लिंक न खोलें। यह जाँच ऑफ़लाइन है और वेबसाइट की विश्वसनीयता की पुष्टि नहीं कर सकती।',
+        'Choose QR image':'QR की छवि चुनें', 'Use camera':'कैमरा इस्तेमाल करें', 'Stop camera':'कैमरा बंद करें',
+        'Camera access requires HTTPS or localhost. A QR payment request may send money from your account; scanning never receives money for you.':'कैमरे के लिए HTTPS या localhost ज़रूरी है। QR भुगतान अनुरोध से आपके खाते से पैसे जा सकते हैं; स्कैन करने से पैसे नहीं मिलते।',
+        'Real-time assessment':'तुरंत जोखिम आकलन', 'Ready to check':'जाँच के लिए तैयार', 'Enter payment details to begin.':'शुरू करने के लिए भुगतान की जानकारी डालें।',
+        'Heuristic risk score':'अनुमानित जोखिम स्कोर', 'Signals to review':'ध्यान देने योग्य संकेत',
+        'Add a UPI ID, message, link, or QR code. You will see findings here as you type.':'UPI ID, संदेश, लिंक या QR कोड जोड़ें। जाँच के नतीजे यहाँ दिखेंगे।',
+        'A low score is not a guarantee of safety. Always verify the recipient and amount in your own UPI app before entering your PIN.':'कम स्कोर सुरक्षा की गारंटी नहीं है। PIN डालने से पहले अपने UPI ऐप में प्राप्तकर्ता और राशि हमेशा जाँचें।',
+        'Already lost money?':'पैसे जा चुके हैं?', 'Report cyber financial fraud in India immediately.':'भारत में साइबर वित्तीय धोखाधड़ी की तुरंत रिपोर्ट करें।', 'Call 1930':'1930 पर कॉल करें',
+        'Scam Shield uses local pattern checks only. It does not connect to banks, verify account ownership, block transactions, or provide a live fraud database.':'Scam Shield केवल स्थानीय पैटर्न जाँचता है। यह बैंकों से नहीं जुड़ता, खाते के मालिक की पुष्टि या लेन-देन रोकता नहीं है, और लाइव धोखाधड़ी डेटाबेस नहीं देता।',
+        'This does not look like a standard UPI ID. Recheck it against the recipient’s details.':'यह सामान्य UPI ID जैसी नहीं लगती। प्राप्तकर्ता की दी हुई जानकारी से दोबारा मिलाएँ।',
+        'The handle contains payment or support-related wording. Confirm it independently; a name in a UPI ID is not proof of identity.':'इस ID में भुगतान या सहायता से जुड़े शब्द हैं। इसकी अलग से पुष्टि करें; UPI ID में नाम होना पहचान का प्रमाण नहीं है।',
+        'The handle includes a web-domain-like name. Confirm the exact payee in your UPI app before paying.':'इस ID में वेबसाइट जैसा नाम है। भुगतान से पहले अपने UPI ऐप में सही प्राप्तकर्ता की पुष्टि करें।',
+        'The amount is not a valid positive number. Check it before proceeding.':'राशि सही धनात्मक संख्या नहीं है। आगे बढ़ने से पहले जाँचें।',
+        'This is a high-value transfer. Verify the recipient through a separate trusted channel.':'यह बड़ी राशि का भुगतान है। किसी दूसरे भरोसेमंद माध्यम से प्राप्तकर्ता की पुष्टि करें।',
+        'No obvious format warning found. This does not verify the recipient or guarantee the payment is safe.':'फ़ॉर्मेट में कोई स्पष्ट चेतावनी नहीं मिली। इससे प्राप्तकर्ता की पुष्टि या भुगतान की सुरक्षा सुनिश्चित नहीं होती।',
+        'Creates urgency or threatens account restrictions to rush a decision.':'जल्दबाज़ी कराने के लिए दबाव या खाता बंद करने की धमकी देता है।',
+        'Mentions a PIN, OTP, password, or CVV. Never share these; a legitimate payer does not need them to send you money.':'PIN, OTP, पासवर्ड या CVV माँगता है। इन्हें कभी साझा न करें; पैसे भेजने के लिए असली भुगतानकर्ता को इनकी ज़रूरत नहीं होती।',
+        'May be asking you to approve a collect request. Approving can authorize money to leave your account.':'आपसे कलेक्ट अनुरोध मंज़ूर करने को कहा जा सकता है। मंज़ूरी देने से आपके खाते से पैसे जा सकते हैं।',
+        'Requests KYC or account verification. Use your bank’s official app or website, not a message link.':'KYC या खाते के सत्यापन की माँग करता है। संदेश के लिंक के बजाय बैंक का आधिकारिक ऐप या वेबसाइट इस्तेमाल करें।',
+        'Combines a reward or refund claim with a scan, payment, or approval. Receiving money does not require your UPI PIN.':'इनाम या रिफंड के बहाने स्कैन, भुगतान या मंज़ूरी माँगता है। पैसे पाने के लिए UPI PIN की ज़रूरत नहीं होती।',
+        'Asks for remote access or an unfamiliar app. This can expose your screen and banking activity.':'रिमोट एक्सेस या अनजान ऐप माँगता है। इससे आपकी स्क्रीन और बैंकिंग गतिविधि देखी जा सकती है।',
+        'No obvious scam phrases found. Check the sender and verify any request using a trusted contact method.':'धोखाधड़ी का कोई स्पष्ट वाक्य नहीं मिला। भेजने वाले की जाँच करें और अनुरोध की भरोसेमंद माध्यम से पुष्टि करें।',
+        'This does not appear to be a valid web address.':'यह सही वेब पता नहीं लगता।',
+        'This link does not use HTTPS. Do not enter payment or login details.':'यह लिंक HTTPS का उपयोग नहीं करता। इसमें भुगतान या लॉगिन जानकारी न डालें।',
+        'The address contains embedded login information, a technique sometimes used to disguise the destination.':'इस पते में लॉगिन जानकारी छिपी है; कभी-कभी इसका उपयोग असली वेबसाइट छिपाने के लिए किया जाता है।',
+        'The domain uses characters that may be visually confused with Latin letters. Check it carefully.':'डोमेन में ऐसे अक्षर हैं जो लैटिन अक्षरों जैसे दिख सकते हैं। इसे ध्यान से जाँचें।',
+        'A shortened link hides its final destination. Avoid opening unexpected payment links.':'छोटा किया गया लिंक असली पता छिपाता है। अनपेक्षित भुगतान लिंक न खोलें।',
+        'The domain contains a familiar financial brand name, but may not be its official domain. Verify the exact hostname.':'डोमेन में किसी वित्तीय ब्रांड का परिचित नाम है, पर यह उसकी आधिकारिक वेबसाइट नहीं हो सकती। पूरा होस्टनेम जाँचें।',
+        'No obvious URL pattern warning found. The site has not been reputation-checked; do not trust a link just because it looks familiar.':'URL में कोई स्पष्ट चेतावनी नहीं मिली। वेबसाइट की प्रतिष्ठा जाँची नहीं गई है; सिर्फ़ परिचित नाम देखकर भरोसा न करें।',
+        'This UPI QR is a payment instruction. Scanning it can send money out; you cannot receive money by scanning a QR.':'यह UPI QR भुगतान का निर्देश है। इसे स्कैन करने से पैसे जा सकते हैं; QR स्कैन करके पैसे प्राप्त नहीं होते।',
+        'This may be a collect request. Never approve a request you did not initiate.':'यह कलेक्ट अनुरोध हो सकता है। ऐसा अनुरोध कभी मंज़ूर न करें जिसे आपने शुरू नहीं किया।',
+        'This QR does not contain a recognizable UPI payment link. Do not follow instructions shown by an unknown QR.':'इस QR में पहचाना जाने वाला UPI भुगतान लिंक नहीं है। अनजान QR के निर्देशों का पालन न करें।',
+        'High risk signals':'उच्च जोखिम के संकेत', 'Do not approve until independently verified.':'अलग से पुष्टि होने तक मंज़ूरी न दें।',
+        'Review carefully':'ध्यान से जाँचें', 'Pause and verify using a trusted channel.':'रुकें और भरोसेमंद माध्यम से पुष्टि करें।',
+        'No obvious warning':'कोई स्पष्ट चेतावनी नहीं', 'This is not a verification or safety guarantee.':'यह पुष्टि या सुरक्षा की गारंटी नहीं है।',
+        'Camera access is unavailable here. Open this page on HTTPS or localhost, or upload a QR image.':'यहाँ कैमरे की सुविधा उपलब्ध नहीं है। पेज को HTTPS या localhost पर खोलें, या QR छवि अपलोड करें।',
+        'The QR reader library did not load. Check your connection or upload a QR image after it becomes available.':'QR रीडर लोड नहीं हुआ। इंटरनेट जाँचें या उपलब्ध होने पर QR छवि अपलोड करें।',
+        'Camera permission was denied or the camera is unavailable. You can upload a QR image instead.':'कैमरे की अनुमति नहीं मिली या कैमरा उपलब्ध नहीं है। इसके बजाय QR छवि अपलोड करें।',
+        'The QR reader library did not load. Check your internet connection and try again.':'QR रीडर लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचकर फिर कोशिश करें।',
+        'Choose an image file containing a QR code.':'QR कोड वाली छवि फ़ाइल चुनें।', 'No QR code was found. Try a sharper, well-lit image.':'कोई QR कोड नहीं मिला। अधिक साफ़ और रोशनी वाली छवि आज़माएँ।',
+        'Could not read that image. Try another image file.':'यह छवि पढ़ी नहीं जा सकी। दूसरी छवि फ़ाइल आज़माएँ।', 'What would you like to check?':'आप किसकी जाँच करना चाहते हैं?'
+      },
+      pa: {
+        'Scam Shield | UPI payment safety check':'Scam Shield | UPI ਭੁਗਤਾਨ ਸੁਰੱਖਿਆ ਜਾਂਚ', 'Live local analysis':'ਲੋਕਲ ਜਾਂਚ ਚਾਲੂ', 'Live shared analysis':'ਸਾਂਝੇ ਲਾਈਵ ਡਾਟਾਬੇਸ ਦੀ ਜਾਂਚ', 'Language':'ਭਾਸ਼ਾ', 'Payment safety / India':'ਭੁਗਤਾਨ ਸੁਰੱਖਿਆ / ਭਾਰਤ',
+        'Find Scam Shield':'Scam Shield ਨਾਲ ਜੁੜੋ', 'Demo links · replace with official accounts':'ਡੈਮੋ ਲਿੰਕ · ਅਧਿਕਾਰਤ ਖਾਤਿਆਂ ਨਾਲ ਬਦਲੋ', 'Social media demo links':'ਸੋਸ਼ਲ ਮੀਡੀਆ ਡੈਮੋ ਲਿੰਕ',
+        'Instagram demo link':'Instagram ਡੈਮੋ ਲਿੰਕ', 'Facebook demo link':'Facebook ਡੈਮੋ ਲਿੰਕ', 'X demo link':'X ਡੈਮੋ ਲਿੰਕ', 'YouTube demo link':'YouTube ਡੈਮੋ ਲਿੰਕ',
+        'Reviews':'ਸਮੀਖਿਆਵਾਂ', 'Community feedback':'ਭਾਈਚਾਰੇ ਦੀ ਰਾਇ', 'User reviews':'ਵਰਤੋਂਕਾਰਾਂ ਦੀਆਂ ਸਮੀਖਿਆਵਾਂ', 'Close reviews':'ਸਮੀਖਿਆਵਾਂ ਬੰਦ ਕਰੋ', 'Share what helped or what could be clearer.':'ਦੱਸੋ ਕਿ ਕੀ ਮਦਦਗਾਰ ਸੀ ਜਾਂ ਕੀ ਹੋਰ ਸਪੱਸ਼ਟ ਹੋ ਸਕਦਾ ਹੈ।',
+        'review':'ਸਮੀਖਿਆ', 'reviews':'ਸਮੀਖਿਆਵਾਂ', 'Rate your experience':'ਆਪਣਾ ਤਜਰਬਾ ਰੇਟ ਕਰੋ', 'Your rating':'ਤੁਹਾਡੀ ਰੇਟਿੰਗ', '1 star':'1 ਸਟਾਰ', '2 stars':'2 ਸਟਾਰ', '3 stars':'3 ਸਟਾਰ', '4 stars':'4 ਸਟਾਰ', '5 stars':'5 ਸਟਾਰ',
+        'Write a review':'ਸਮੀਖਿਆ ਲਿਖੋ', '(optional)':'(ਵਿਕਲਪਿਕ)', 'What worked or could be clearer?':'ਕੀ ਵਧੀਆ ਸੀ ਜਾਂ ਕੀ ਹੋਰ ਸਪੱਸ਼ਟ ਹੋ ਸਕਦਾ ਹੈ?',
+        'Reviews are anonymous and publicly visible. Don\'t include personal or financial details.':'ਸਮੀਖਿਆਵਾਂ ਗੁਮਨਾਮ ਹਨ ਅਤੇ ਸਭ ਨੂੰ ਦਿਖਣਗੀਆਂ। ਨਿੱਜੀ ਜਾਂ ਵਿੱਤੀ ਵੇਰਵੇ ਨਾ ਲਿਖੋ।', 'Submit review':'ਸਮੀਖਿਆ ਭੇਜੋ', 'Recent reviews':'ਹਾਲੀਆ ਸਮੀਖਿਆਵਾਂ',
+        'No reviews yet. Be the first to share feedback.':'ਹਾਲੇ ਕੋਈ ਸਮੀਖਿਆ ਨਹੀਂ। ਪਹਿਲੀ ਰਾਇ ਸਾਂਝੀ ਕਰੋ।', 'Rating only':'ਸਿਰਫ਼ ਰੇਟਿੰਗ',
+        'This UPI ID appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.':'ਇਹ UPI ID ਸਾਂਝੇ ਧੋਖਾਧੜੀ-ਰਿਪੋਰਟ ਡਾਟਾਬੇਸ ਵਿੱਚ ਹੈ ({reports} ਰਿਪੋਰਟਾਂ)। ਵੱਖਰੇ ਤੌਰ ’ਤੇ ਜਾਂਚੋ ਅਤੇ ਸਿਰਫ਼ ਇਸ ਨਤੀਜੇ ਦੇ ਆਧਾਰ ’ਤੇ ਭੁਗਤਾਨ ਨਾ ਕਰੋ।',
+        'This domain appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.':'ਇਹ ਡੋਮੇਨ ਸਾਂਝੇ ਧੋਖਾਧੜੀ-ਰਿਪੋਰਟ ਡਾਟਾਬੇਸ ਵਿੱਚ ਹੈ ({reports} ਰਿਪੋਰਟਾਂ)। ਵੱਖਰੇ ਤੌਰ ’ਤੇ ਜਾਂਚੋ ਅਤੇ ਸਿਰਫ਼ ਇਸ ਨਤੀਜੇ ਦੇ ਆਧਾਰ ’ਤੇ ਭੁਗਤਾਨ ਨਾ ਕਰੋ।',
+        'This phone number appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.':'ਇਹ ਫ਼ੋਨ ਨੰਬਰ ਸਾਂਝੇ ਧੋਖਾਧੜੀ-ਰਿਪੋਰਟ ਡਾਟਾਬੇਸ ਵਿੱਚ ਹੈ ({reports} ਰਿਪੋਰਟਾਂ)। ਵੱਖਰੇ ਤੌਰ ’ਤੇ ਜਾਂਚੋ ਅਤੇ ਸਿਰਫ਼ ਇਸ ਨਤੀਜੇ ਦੇ ਆਧਾਰ ’ਤੇ ਭੁਗਤਾਨ ਨਾ ਕਰੋ।',
+        'Review submitted. Thanks for your feedback.':'ਸਮੀਖਿਆ ਭੇਜ ਦਿੱਤੀ ਗਈ। ਤੁਹਾਡੀ ਰਾਇ ਲਈ ਧੰਨਵਾਦ।', 'Could not submit your review. Try again.':'ਸਮੀਖਿਆ ਨਹੀਂ ਭੇਜੀ ਜਾ ਸਕੀ। ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+        'Could not load reviews.':'ਸਮੀਖਿਆਵਾਂ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀਆਂ।', 'Please choose a rating from 1 to 5.':'1 ਤੋਂ 5 ਤੱਕ ਰੇਟਿੰਗ ਚੁਣੋ।',
+        'Ask AI':'AI ਨੂੰ ਪੁੱਛੋ', 'AI payment-safety guide':'AI ਭੁਗਤਾਨ-ਸੁਰੱਖਿਆ ਸਹਾਇਕ', 'Ask the AI guide':'AI ਸਹਾਇਕ ਨੂੰ ਪੁੱਛੋ', 'Close AI chat':'AI ਚੈਟ ਬੰਦ ਕਰੋ',
+        'Your question and the current score/status are sent to OpenAI. Don’t include a PIN, OTP, password, CVV, or personal bank details.':'ਤੁਹਾਡਾ ਸਵਾਲ ਅਤੇ ਮੌਜੂਦਾ ਸਕੋਰ/ਸਥਿਤੀ OpenAI ਨੂੰ ਭੇਜੇ ਜਾਂਦੇ ਹਨ। PIN, OTP, ਪਾਸਵਰਡ, CVV ਜਾਂ ਨਿੱਜੀ ਬੈਂਕ ਵੇਰਵੇ ਨਾ ਭੇਜੋ।',
+        'Hi! Ask me what a warning means or how to check a payment safely.':'ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਚੇਤਾਵਨੀ ਦਾ ਮਤਲਬ ਪੁੱਛੋ ਜਾਂ ਭੁਗਤਾਨ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਜਾਂਚਣਾ ਸਿੱਖੋ।', 'Type your question...':'ਆਪਣਾ ਸਵਾਲ ਲਿਖੋ...', 'Send':'ਭੇਜੋ', 'Thinking...':'ਜਵਾਬ ਤਿਆਰ ਹੋ ਰਿਹਾ ਹੈ...',
+        'The AI service is not configured on the server. Set OPENAI_API_KEY and try again.':'ਸਰਵਰ ’ਤੇ AI ਸੇਵਾ ਸੈੱਟ ਨਹੀਂ ਹੈ। OPENAI_API_KEY ਸੈੱਟ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+        'You have sent several questions quickly. Please wait a minute and try again.':'ਤੁਸੀਂ ਥੋੜ੍ਹੇ ਸਮੇਂ ਵਿੱਚ ਕਈ ਸਵਾਲ ਭੇਜੇ ਹਨ। ਇੱਕ ਮਿੰਟ ਰੁਕ ਕੇ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+        'The AI assistant is temporarily unavailable. Try again shortly.':'AI ਸਹਾਇਕ ਇਸ ਵੇਲੇ ਉਪਲਬਧ ਨਹੀਂ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ।', 'Please enter a question first.':'ਪਹਿਲਾਂ ਆਪਣਾ ਸਵਾਲ ਲਿਖੋ।',
+        'Help desk':'ਮਦਦ ਕੇਂਦਰ', 'Close help desk':'ਮਦਦ ਕੇਂਦਰ ਬੰਦ ਕਰੋ', 'Scam Shield support':'Scam Shield ਸਹਾਇਤਾ',
+        'Choose the tab that matches what you received. Paste only the details needed for a check.':'ਤੁਹਾਨੂੰ ਜੋ ਮਿਲਿਆ ਹੈ ਉਸ ਮੁਤਾਬਕ ਟੈਬ ਚੁਣੋ। ਜਾਂਚ ਲਈ ਸਿਰਫ਼ ਲੋੜੀਂਦੇ ਵੇਰਵੇ ਪੇਸਟ ਕਰੋ।',
+        'Check a UPI ID':'UPI ID ਦੀ ਜਾਂਚ ਕਰੋ', 'Enter the recipient’s UPI ID exactly as shown in your payment app. You can add the amount too. Compare the payee name in your UPI app before paying.':'ਪ੍ਰਾਪਤਕਰਤਾ ਦੀ UPI ID ਆਪਣੀ ਭੁਗਤਾਨ ਐਪ ਵਿੱਚ ਦਿਖਾਏ ਅਨੁਸਾਰ ਹੀ ਪਾਓ। ਰਕਮ ਵੀ ਜੋੜ ਸਕਦੇ ਹੋ। ਭੁਗਤਾਨ ਤੋਂ ਪਹਿਲਾਂ UPI ਐਪ ਵਿੱਚ ਨਾਂ ਮਿਲਾਓ।',
+        'Review a message':'ਸੁਨੇਹੇ ਦੀ ਜਾਂਚ ਕਰੋ', 'Paste a suspicious SMS or chat. Remove phone numbers, OTPs, and other personal details first.':'ਸ਼ੱਕੀ SMS ਜਾਂ ਚੈਟ ਪੇਸਟ ਕਰੋ। ਪਹਿਲਾਂ ਫ਼ੋਨ ਨੰਬਰ, OTP ਅਤੇ ਹੋਰ ਨਿੱਜੀ ਵੇਰਵੇ ਹਟਾਓ।',
+        'Inspect a payment link':'ਭੁਗਤਾਨ ਲਿੰਕ ਜਾਂਚੋ', 'Paste the full URL here. The check looks for URL patterns only; it does not open the link or verify the website.':'ਪੂਰਾ URL ਇੱਥੇ ਪੇਸਟ ਕਰੋ। ਜਾਂਚ ਸਿਰਫ਼ URL ਪੈਟਰਨ ਵੇਖਦੀ ਹੈ; ਲਿੰਕ ਨਹੀਂ ਖੋਲ੍ਹਦੀ ਅਤੇ ਵੈੱਬਸਾਈਟ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕਰਦੀ।',
+        'Scan a QR code':'QR ਕੋਡ ਸਕੈਨ ਕਰੋ', 'Upload a QR image or use your camera. A payment QR can send money. Scanning does not receive money, and you never need to share a PIN or OTP.':'QR ਤਸਵੀਰ ਅੱਪਲੋਡ ਕਰੋ ਜਾਂ ਕੈਮਰਾ ਵਰਤੋ। ਭੁਗਤਾਨ QR ਨਾਲ ਪੈਸੇ ਜਾ ਸਕਦੇ ਹਨ। ਸਕੈਨ ਕਰਨ ਨਾਲ ਪੈਸੇ ਨਹੀਂ ਮਿਲਦੇ ਅਤੇ PIN ਜਾਂ OTP ਸਾਂਝਾ ਕਰਨ ਦੀ ਲੋੜ ਨਹੀਂ।',
+        'Understand the risk score':'ਜੋਖਮ ਸਕੋਰ ਸਮਝੋ', '0-24 · Low':'0-24 · ਘੱਟ', 'No obvious pattern found. This is not a safety guarantee.':'ਕੋਈ ਸਪੱਸ਼ਟ ਪੈਟਰਨ ਨਹੀਂ ਮਿਲਿਆ। ਇਹ ਸੁਰੱਖਿਆ ਦੀ ਗਾਰੰਟੀ ਨਹੀਂ ਹੈ।',
+        '25-54 · Caution':'25-54 · ਸਾਵਧਾਨੀ', 'Pause and verify the recipient or request through a trusted channel.':'ਰੁਕੋ ਅਤੇ ਭਰੋਸੇਯੋਗ ਤਰੀਕੇ ਨਾਲ ਪ੍ਰਾਪਤਕਰਤਾ ਜਾਂ ਬੇਨਤੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।',
+        '55-100 · High risk':'55-100 · ਵੱਧ ਜੋਖਮ', 'Do not proceed until you have independently confirmed the request.':'ਬੇਨਤੀ ਦੀ ਵੱਖਰੇ ਤੌਰ ’ਤੇ ਪੁਸ਼ਟੀ ਹੋਣ ਤੱਕ ਅੱਗੇ ਨਾ ਵਧੋ।',
+        'Protect your account':'ਆਪਣਾ ਖਾਤਾ ਸੁਰੱਖਿਅਤ ਰੱਖੋ', 'Never share your UPI PIN, OTP, password, or CVV. The checker runs in this browser and does not need these details.':'ਆਪਣਾ UPI PIN, OTP, ਪਾਸਵਰਡ ਜਾਂ CVV ਕਦੇ ਸਾਂਝਾ ਨਾ ਕਰੋ। ਜਾਂਚ ਇਸੇ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਹੁੰਦੀ ਹੈ ਅਤੇ ਇਨ੍ਹਾਂ ਵੇਰਵਿਆਂ ਦੀ ਲੋੜ ਨਹੀਂ।',
+        'Lost money? Report cyber financial fraud in India immediately.':'ਪੈਸੇ ਗੁਆਏ? ਭਾਰਤ ਵਿੱਚ ਸਾਈਬਰ ਵਿੱਤੀ ਧੋਖਾਧੜੀ ਦੀ ਤੁਰੰਤ ਰਿਪੋਰਟ ਕਰੋ।',
+        'A safer moment before every payment.':'ਹਰ ਭੁਗਤਾਨ ਤੋਂ ਪਹਿਲਾਂ ਸੁਰੱਖਿਅਤ ਪਲ।', 'Check UPI IDs, messages, links, and QR codes before you approve a transaction.':'ਲੈਣ-ਦੇਣ ਮਨਜ਼ੂਰ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ UPI ID, ਸੁਨੇਹੇ, ਲਿੰਕ ਅਤੇ QR ਕੋਡ ਜਾਂਚੋ।',
+        'Local-first checks':'ਲੋਕਲ ਜਾਂਚ', 'No PIN or OTP needed':'PIN ਜਾਂ OTP ਦੀ ਲੋੜ ਨਹੀਂ', 'Welcome to Scam Shield':'Scam Shield ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ',
+        'Preview access to your payment safety checker.':'ਭੁਗਤਾਨ ਸੁਰੱਖਿਆ ਜਾਂਚ ਦਾ ਪ੍ਰੀਵਿਊ।', 'Email address':'ਈਮੇਲ ਪਤਾ', 'Password':'ਪਾਸਵਰਡ',
+        'Enter any password':'ਕੋਈ ਵੀ ਪਾਸਵਰਡ ਪਾਓ', 'Continue to checker':'ਜਾਂਚ ਵੱਲ ਜਾਓ', 'Opening your checker...':'ਤੁਹਾਡੀ ਜਾਂਚ ਖੋਲ੍ਹੀ ਜਾ ਰਹੀ ਹੈ...',
+        'Demo sign-in only. There are no user accounts; these fields are not sent or saved.':'ਇਹ ਸਿਰਫ਼ ਡੈਮੋ ਸਾਈਨ-ਇਨ ਹੈ। ਕੋਈ ਯੂਜ਼ਰ ਖਾਤਾ ਨਹੀਂ; ਇਹ ਵੇਰਵੇ ਨਾ ਭੇਜੇ ਜਾਂਦੇ ਹਨ ਅਤੇ ਨਾ ਹੀ ਸੰਭਾਲੇ ਜਾਂਦੇ ਹਨ।',
+        'or':'ਜਾਂ', 'Continue as guest':'ਮਹਿਮਾਨ ਵਜੋਂ ਜਾਰੀ ਰੱਖੋ',
+        'Pay with your eyes open.':'ਸੋਚ-ਸਮਝ ਕੇ ਭੁਗਤਾਨ ਕਰੋ।', 'Spot common UPI fraud signals before you approve a payment.':'ਭੁਗਤਾਨ ਮਨਜ਼ੂਰ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ UPI ਧੋਖਾਧੜੀ ਦੇ ਸੰਕੇਤ ਪਛਾਣੋ।',
+        'Your checks run in this browser. Never enter your UPI PIN or OTP here.':'ਤੁਹਾਡੀ ਜਾਂਚ ਇਸੇ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਹੁੰਦੀ ਹੈ। ਇੱਥੇ ਕਦੇ ਵੀ ਆਪਣਾ UPI PIN ਜਾਂ OTP ਨਾ ਪਾਓ।',
+        'Check a payment':'ਭੁਗਤਾਨ ਦੀ ਜਾਂਚ ਕਰੋ', '01 / INSPECT':'01 / ਜਾਂਚੋ', 'Message':'ਸੁਨੇਹਾ', 'Payment link':'ਭੁਗਤਾਨ ਲਿੰਕ', 'QR code':'QR ਕੋਡ',
+        'Recipient UPI ID':'ਪ੍ਰਾਪਤਕਰਤਾ ਦੀ UPI ID', 'Example: name@bank':'ਉਦਾਹਰਨ: name@bank', 'Payment amount':'ਭੁਗਤਾਨ ਦੀ ਰਕਮ', 'Optional':'ਵਿਕਲਪਿਕ',
+        'Enter the UPI ID shown in your payment app':'ਆਪਣੀ ਭੁਗਤਾਨ ਐਪ ਵਿੱਚ ਦਿਖਾਈ UPI ID ਪਾਓ',
+        'Compare the recipient name shown by your UPI app with the person or business you intend to pay. A valid-looking handle does not prove identity.':'ਆਪਣੀ UPI ਐਪ ਵਿੱਚ ਦਿਖਾਏ ਪ੍ਰਾਪਤਕਰਤਾ ਦੇ ਨਾਂ ਦੀ ਉਸ ਵਿਅਕਤੀ ਜਾਂ ਕਾਰੋਬਾਰ ਨਾਲ ਤੁਲਨਾ ਕਰੋ ਜਿਸਨੂੰ ਤੁਸੀਂ ਭੁਗਤਾਨ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ। ਸਹੀ ਲੱਗਦੀ ID ਪਛਾਣ ਦਾ ਸਬੂਤ ਨਹੀਂ ਹੈ।',
+        'Suspicious SMS, WhatsApp, or call transcript':'ਸ਼ੱਕੀ SMS, WhatsApp ਸੁਨੇਹਾ ਜਾਂ ਕਾਲ ਦਾ ਵੇਰਵਾ', 'Paste the message here. Remove personal details first.':'ਸੁਨੇਹਾ ਇੱਥੇ ਪੇਸਟ ਕਰੋ। ਪਹਿਲਾਂ ਨਿੱਜੀ ਜਾਣਕਾਰੀ ਹਟਾਓ।',
+        'We look for common pressure tactics, credential requests, collect requests, and payment redirection.':'ਅਸੀਂ ਦਬਾਅ ਪਾਉਣ, ਗੁਪਤ ਜਾਣਕਾਰੀ ਮੰਗਣ, ਕਲੈਕਟ ਬੇਨਤੀ ਅਤੇ ਭੁਗਤਾਨ ਦਾ ਰਾਹ ਬਦਲਣ ਵਰਗੇ ਸੰਕੇਤ ਲੱਭਦੇ ਹਾਂ।',
+        'Payment or verification link':'ਭੁਗਤਾਨ ਜਾਂ ਤਸਦੀਕ ਲਿੰਕ', 'Do not open an unexpected payment or KYC link. This check is offline and cannot confirm a site’s reputation.':'ਅਣਜਾਣ ਭੁਗਤਾਨ ਜਾਂ KYC ਲਿੰਕ ਨਾ ਖੋਲ੍ਹੋ। ਇਹ ਜਾਂਚ ਆਫ਼ਲਾਈਨ ਹੈ ਅਤੇ ਵੈੱਬਸਾਈਟ ਦੀ ਭਰੋਸੇਯੋਗਤਾ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕਰ ਸਕਦੀ।',
+        'Choose QR image':'QR ਤਸਵੀਰ ਚੁਣੋ', 'Use camera':'ਕੈਮਰਾ ਵਰਤੋ', 'Stop camera':'ਕੈਮਰਾ ਬੰਦ ਕਰੋ',
+        'Camera access requires HTTPS or localhost. A QR payment request may send money from your account; scanning never receives money for you.':'ਕੈਮਰੇ ਲਈ HTTPS ਜਾਂ localhost ਲੋੜੀਂਦਾ ਹੈ। QR ਭੁਗਤਾਨ ਬੇਨਤੀ ਨਾਲ ਤੁਹਾਡੇ ਖਾਤੇ ਵਿੱਚੋਂ ਪੈਸੇ ਜਾ ਸਕਦੇ ਹਨ; ਸਕੈਨ ਕਰਨ ਨਾਲ ਤੁਹਾਨੂੰ ਪੈਸੇ ਨਹੀਂ ਮਿਲਦੇ।',
+        'Real-time assessment':'ਤੁਰੰਤ ਜੋਖਮ ਜਾਂਚ', 'Ready to check':'ਜਾਂਚ ਲਈ ਤਿਆਰ', 'Enter payment details to begin.':'ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਭੁਗਤਾਨ ਦੇ ਵੇਰਵੇ ਪਾਓ।',
+        'Heuristic risk score':'ਅੰਦਾਜ਼ੀ ਜੋਖਮ ਸਕੋਰ', 'Signals to review':'ਧਿਆਨ ਦੇਣ ਵਾਲੇ ਸੰਕੇਤ',
+        'Add a UPI ID, message, link, or QR code. You will see findings here as you type.':'UPI ID, ਸੁਨੇਹਾ, ਲਿੰਕ ਜਾਂ QR ਕੋਡ ਪਾਓ। ਜਾਂਚ ਦੇ ਨਤੀਜੇ ਇੱਥੇ ਦਿਖਣਗੇ।',
+        'A low score is not a guarantee of safety. Always verify the recipient and amount in your own UPI app before entering your PIN.':'ਘੱਟ ਸਕੋਰ ਸੁਰੱਖਿਆ ਦੀ ਗਾਰੰਟੀ ਨਹੀਂ ਹੈ। PIN ਪਾਉਣ ਤੋਂ ਪਹਿਲਾਂ ਆਪਣੀ UPI ਐਪ ਵਿੱਚ ਪ੍ਰਾਪਤਕਰਤਾ ਅਤੇ ਰਕਮ ਦੀ ਜਾਂਚ ਕਰੋ।',
+        'Already lost money?':'ਪੈਸੇ ਗੁਆ ਚੁੱਕੇ ਹੋ?', 'Report cyber financial fraud in India immediately.':'ਭਾਰਤ ਵਿੱਚ ਸਾਈਬਰ ਵਿੱਤੀ ਧੋਖਾਧੜੀ ਦੀ ਤੁਰੰਤ ਰਿਪੋਰਟ ਕਰੋ।', 'Call 1930':'1930 ’ਤੇ ਕਾਲ ਕਰੋ',
+        'Scam Shield uses local pattern checks only. It does not connect to banks, verify account ownership, block transactions, or provide a live fraud database.':'Scam Shield ਸਿਰਫ਼ ਲੋਕਲ ਪੈਟਰਨ ਜਾਂਚ ਕਰਦਾ ਹੈ। ਇਹ ਬੈਂਕਾਂ ਨਾਲ ਨਹੀਂ ਜੁੜਦਾ, ਖਾਤੇ ਦੇ ਮਾਲਕ ਦੀ ਪੁਸ਼ਟੀ ਜਾਂ ਲੈਣ-ਦੇਣ ਰੋਕਦਾ ਨਹੀਂ, ਅਤੇ ਲਾਈਵ ਧੋਖਾਧੜੀ ਡਾਟਾਬੇਸ ਨਹੀਂ ਦਿੰਦਾ।',
+        'This does not look like a standard UPI ID. Recheck it against the recipient’s details.':'ਇਹ ਆਮ UPI ID ਵਰਗੀ ਨਹੀਂ ਲੱਗਦੀ। ਪ੍ਰਾਪਤਕਰਤਾ ਦੇ ਦਿੱਤੇ ਵੇਰਵਿਆਂ ਨਾਲ ਮੁੜ ਜਾਂਚੋ।',
+        'The handle contains payment or support-related wording. Confirm it independently; a name in a UPI ID is not proof of identity.':'ਇਸ ID ਵਿੱਚ ਭੁਗਤਾਨ ਜਾਂ ਮਦਦ ਨਾਲ ਜੁੜੇ ਸ਼ਬਦ ਹਨ। ਵੱਖਰੇ ਤੌਰ ’ਤੇ ਪੁਸ਼ਟੀ ਕਰੋ; UPI ID ਵਿੱਚ ਨਾਂ ਪਛਾਣ ਦਾ ਸਬੂਤ ਨਹੀਂ।',
+        'The handle includes a web-domain-like name. Confirm the exact payee in your UPI app before paying.':'ਇਸ ID ਵਿੱਚ ਵੈੱਬਸਾਈਟ ਵਰਗਾ ਨਾਂ ਹੈ। ਭੁਗਤਾਨ ਤੋਂ ਪਹਿਲਾਂ ਆਪਣੀ UPI ਐਪ ਵਿੱਚ ਸਹੀ ਪ੍ਰਾਪਤਕਰਤਾ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।',
+        'The amount is not a valid positive number. Check it before proceeding.':'ਰਕਮ ਸਹੀ ਧਨਾਤਮਕ ਅੰਕ ਨਹੀਂ ਹੈ। ਅੱਗੇ ਵਧਣ ਤੋਂ ਪਹਿਲਾਂ ਜਾਂਚੋ।',
+        'This is a high-value transfer. Verify the recipient through a separate trusted channel.':'ਇਹ ਵੱਡੀ ਰਕਮ ਦਾ ਭੁਗਤਾਨ ਹੈ। ਕਿਸੇ ਹੋਰ ਭਰੋਸੇਯੋਗ ਤਰੀਕੇ ਨਾਲ ਪ੍ਰਾਪਤਕਰਤਾ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।',
+        'No obvious format warning found. This does not verify the recipient or guarantee the payment is safe.':'ਫਾਰਮੈਟ ਬਾਰੇ ਕੋਈ ਸਪੱਸ਼ਟ ਚੇਤਾਵਨੀ ਨਹੀਂ ਮਿਲੀ। ਇਸ ਨਾਲ ਪ੍ਰਾਪਤਕਰਤਾ ਦੀ ਪੁਸ਼ਟੀ ਜਾਂ ਭੁਗਤਾਨ ਦੀ ਸੁਰੱਖਿਆ ਯਕੀਨੀ ਨਹੀਂ ਹੁੰਦੀ।',
+        'Creates urgency or threatens account restrictions to rush a decision.':'ਫ਼ੈਸਲਾ ਜਲਦੀ ਕਰਵਾਉਣ ਲਈ ਦਬਾਅ ਪਾਉਂਦਾ ਜਾਂ ਖਾਤਾ ਬੰਦ ਕਰਨ ਦੀ ਧਮਕੀ ਦਿੰਦਾ ਹੈ।',
+        'Mentions a PIN, OTP, password, or CVV. Never share these; a legitimate payer does not need them to send you money.':'PIN, OTP, ਪਾਸਵਰਡ ਜਾਂ CVV ਮੰਗਦਾ ਹੈ। ਇਹ ਕਦੇ ਸਾਂਝੇ ਨਾ ਕਰੋ; ਪੈਸੇ ਭੇਜਣ ਲਈ ਅਸਲੀ ਭੁਗਤਾਨਕਰਤਾ ਨੂੰ ਇਨ੍ਹਾਂ ਦੀ ਲੋੜ ਨਹੀਂ ਹੁੰਦੀ।',
+        'May be asking you to approve a collect request. Approving can authorize money to leave your account.':'ਤੁਹਾਨੂੰ ਕਲੈਕਟ ਬੇਨਤੀ ਮਨਜ਼ੂਰ ਕਰਨ ਲਈ ਕਿਹਾ ਜਾ ਸਕਦਾ ਹੈ। ਮਨਜ਼ੂਰੀ ਨਾਲ ਤੁਹਾਡੇ ਖਾਤੇ ਵਿੱਚੋਂ ਪੈਸੇ ਜਾ ਸਕਦੇ ਹਨ।',
+        'Requests KYC or account verification. Use your bank’s official app or website, not a message link.':'KYC ਜਾਂ ਖਾਤੇ ਦੀ ਤਸਦੀਕ ਮੰਗਦਾ ਹੈ। ਸੁਨੇਹੇ ਦੇ ਲਿੰਕ ਦੀ ਥਾਂ ਬੈਂਕ ਦੀ ਅਧਿਕਾਰਤ ਐਪ ਜਾਂ ਵੈੱਬਸਾਈਟ ਵਰਤੋ।',
+        'Combines a reward or refund claim with a scan, payment, or approval. Receiving money does not require your UPI PIN.':'ਇਨਾਮ ਜਾਂ ਰਿਫੰਡ ਦੇ ਬਹਾਨੇ ਸਕੈਨ, ਭੁਗਤਾਨ ਜਾਂ ਮਨਜ਼ੂਰੀ ਮੰਗਦਾ ਹੈ। ਪੈਸੇ ਲੈਣ ਲਈ UPI PIN ਦੀ ਲੋੜ ਨਹੀਂ ਹੁੰਦੀ।',
+        'Asks for remote access or an unfamiliar app. This can expose your screen and banking activity.':'ਰਿਮੋਟ ਪਹੁੰਚ ਜਾਂ ਅਣਜਾਣ ਐਪ ਮੰਗਦਾ ਹੈ। ਇਸ ਨਾਲ ਤੁਹਾਡੀ ਸਕ੍ਰੀਨ ਅਤੇ ਬੈਂਕਿੰਗ ਸਰਗਰਮੀ ਦਿਖ ਸਕਦੀ ਹੈ।',
+        'No obvious scam phrases found. Check the sender and verify any request using a trusted contact method.':'ਧੋਖਾਧੜੀ ਵਾਲਾ ਕੋਈ ਸਪੱਸ਼ਟ ਵਾਕ ਨਹੀਂ ਮਿਲਿਆ। ਭੇਜਣ ਵਾਲੇ ਦੀ ਜਾਂਚ ਕਰੋ ਅਤੇ ਬੇਨਤੀ ਦੀ ਭਰੋਸੇਯੋਗ ਤਰੀਕੇ ਨਾਲ ਪੁਸ਼ਟੀ ਕਰੋ।',
+        'This does not appear to be a valid web address.':'ਇਹ ਸਹੀ ਵੈੱਬ ਪਤਾ ਨਹੀਂ ਲੱਗਦਾ।',
+        'This link does not use HTTPS. Do not enter payment or login details.':'ਇਹ ਲਿੰਕ HTTPS ਨਹੀਂ ਵਰਤਦਾ। ਇਸ ਵਿੱਚ ਭੁਗਤਾਨ ਜਾਂ ਲੌਗਇਨ ਦੇ ਵੇਰਵੇ ਨਾ ਪਾਓ।',
+        'The address contains embedded login information, a technique sometimes used to disguise the destination.':'ਇਸ ਪਤੇ ਵਿੱਚ ਲੌਗਇਨ ਜਾਣਕਾਰੀ ਲੁਕਾਈ ਗਈ ਹੈ; ਕਈ ਵਾਰ ਅਸਲੀ ਵੈੱਬਸਾਈਟ ਛੁਪਾਉਣ ਲਈ ਇਹ ਤਰੀਕਾ ਵਰਤਿਆ ਜਾਂਦਾ ਹੈ।',
+        'The domain uses characters that may be visually confused with Latin letters. Check it carefully.':'ਡੋਮੇਨ ਵਿੱਚ ਅਜਿਹੇ ਅੱਖਰ ਹਨ ਜੋ ਲਾਤੀਨੀ ਅੱਖਰਾਂ ਵਰਗੇ ਲੱਗ ਸਕਦੇ ਹਨ। ਧਿਆਨ ਨਾਲ ਜਾਂਚੋ।',
+        'A shortened link hides its final destination. Avoid opening unexpected payment links.':'ਛੋਟਾ ਕੀਤਾ ਲਿੰਕ ਅਸਲ ਪਤਾ ਲੁਕਾਉਂਦਾ ਹੈ। ਅਣਉਮੀਦੇ ਭੁਗਤਾਨ ਲਿੰਕ ਨਾ ਖੋਲ੍ਹੋ।',
+        'The domain contains a familiar financial brand name, but may not be its official domain. Verify the exact hostname.':'ਡੋਮੇਨ ਵਿੱਚ ਵਿੱਤੀ ਬ੍ਰਾਂਡ ਦਾ ਜਾਣਿਆ-ਪਛਾਣਿਆ ਨਾਂ ਹੈ, ਪਰ ਇਹ ਉਸਦੀ ਅਧਿਕਾਰਤ ਵੈੱਬਸਾਈਟ ਨਹੀਂ ਵੀ ਹੋ ਸਕਦੀ। ਪੂਰਾ ਹੋਸਟਨੇਮ ਜਾਂਚੋ।',
+        'No obvious URL pattern warning found. The site has not been reputation-checked; do not trust a link just because it looks familiar.':'URL ਵਿੱਚ ਕੋਈ ਸਪੱਸ਼ਟ ਚੇਤਾਵਨੀ ਨਹੀਂ ਮਿਲੀ। ਵੈੱਬਸਾਈਟ ਦੀ ਭਰੋਸੇਯੋਗਤਾ ਨਹੀਂ ਜਾਂਚੀ ਗਈ; ਸਿਰਫ਼ ਜਾਣੇ-ਪਛਾਣੇ ਨਾਂ ਕਰਕੇ ਲਿੰਕ ’ਤੇ ਭਰੋਸਾ ਨਾ ਕਰੋ।',
+        'This UPI QR is a payment instruction. Scanning it can send money out; you cannot receive money by scanning a QR.':'ਇਹ UPI QR ਭੁਗਤਾਨ ਦਾ ਨਿਰਦੇਸ਼ ਹੈ। ਇਸਨੂੰ ਸਕੈਨ ਕਰਨ ਨਾਲ ਪੈਸੇ ਜਾ ਸਕਦੇ ਹਨ; QR ਸਕੈਨ ਕਰਕੇ ਪੈਸੇ ਨਹੀਂ ਮਿਲਦੇ।',
+        'This may be a collect request. Never approve a request you did not initiate.':'ਇਹ ਕਲੈਕਟ ਬੇਨਤੀ ਹੋ ਸਕਦੀ ਹੈ। ਅਜਿਹੀ ਬੇਨਤੀ ਕਦੇ ਮਨਜ਼ੂਰ ਨਾ ਕਰੋ ਜੋ ਤੁਸੀਂ ਸ਼ੁਰੂ ਨਹੀਂ ਕੀਤੀ।',
+        'This QR does not contain a recognizable UPI payment link. Do not follow instructions shown by an unknown QR.':'ਇਸ QR ਵਿੱਚ ਪਛਾਣਯੋਗ UPI ਭੁਗਤਾਨ ਲਿੰਕ ਨਹੀਂ ਹੈ। ਅਣਜਾਣ QR ਦੇ ਨਿਰਦੇਸ਼ਾਂ ਦੀ ਪਾਲਣਾ ਨਾ ਕਰੋ।',
+        'High risk signals':'ਵੱਧ ਜੋਖਮ ਦੇ ਸੰਕੇਤ', 'Do not approve until independently verified.':'ਵੱਖਰੇ ਤੌਰ ’ਤੇ ਪੁਸ਼ਟੀ ਹੋਣ ਤੱਕ ਮਨਜ਼ੂਰ ਨਾ ਕਰੋ।',
+        'Review carefully':'ਧਿਆਨ ਨਾਲ ਜਾਂਚੋ', 'Pause and verify using a trusted channel.':'ਰੁਕੋ ਅਤੇ ਭਰੋਸੇਯੋਗ ਤਰੀਕੇ ਨਾਲ ਪੁਸ਼ਟੀ ਕਰੋ।',
+        'No obvious warning':'ਕੋਈ ਸਪੱਸ਼ਟ ਚੇਤਾਵਨੀ ਨਹੀਂ', 'This is not a verification or safety guarantee.':'ਇਹ ਪੁਸ਼ਟੀ ਜਾਂ ਸੁਰੱਖਿਆ ਦੀ ਗਾਰੰਟੀ ਨਹੀਂ ਹੈ।',
+        'Camera access is unavailable here. Open this page on HTTPS or localhost, or upload a QR image.':'ਇੱਥੇ ਕੈਮਰਾ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਇਹ ਪੰਨਾ HTTPS ਜਾਂ localhost ’ਤੇ ਖੋਲ੍ਹੋ, ਜਾਂ QR ਤਸਵੀਰ ਅੱਪਲੋਡ ਕਰੋ।',
+        'The QR reader library did not load. Check your connection or upload a QR image after it becomes available.':'QR ਰੀਡਰ ਲੋਡ ਨਹੀਂ ਹੋਇਆ। ਆਪਣਾ ਕਨੈਕਸ਼ਨ ਜਾਂਚੋ ਜਾਂ ਉਪਲਬਧ ਹੋਣ ’ਤੇ QR ਤਸਵੀਰ ਅੱਪਲੋਡ ਕਰੋ।',
+        'Camera permission was denied or the camera is unavailable. You can upload a QR image instead.':'ਕੈਮਰੇ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਮਿਲੀ ਜਾਂ ਕੈਮਰਾ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਇਸਦੀ ਥਾਂ QR ਤਸਵੀਰ ਅੱਪਲੋਡ ਕਰੋ।',
+        'The QR reader library did not load. Check your internet connection and try again.':'QR ਰੀਡਰ ਲੋਡ ਨਹੀਂ ਹੋਇਆ। ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਜਾਂਚ ਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+        'Choose an image file containing a QR code.':'QR ਕੋਡ ਵਾਲੀ ਤਸਵੀਰ ਦੀ ਫ਼ਾਈਲ ਚੁਣੋ।', 'No QR code was found. Try a sharper, well-lit image.':'ਕੋਈ QR ਕੋਡ ਨਹੀਂ ਮਿਲਿਆ। ਹੋਰ ਸਾਫ਼ ਅਤੇ ਚੰਗੀ ਰੌਸ਼ਨੀ ਵਾਲੀ ਤਸਵੀਰ ਅਜ਼ਮਾਓ।',
+        'Could not read that image. Try another image file.':'ਇਹ ਤਸਵੀਰ ਪੜ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ। ਕੋਈ ਹੋਰ ਤਸਵੀਰ ਅਜ਼ਮਾਓ।', 'What would you like to check?':'ਤੁਸੀਂ ਕਿਸ ਚੀਜ਼ ਦੀ ਜਾਂਚ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ?'
+      }
+    };
+    // Accounts and settings text (added)
+    Object.assign(translations.hi, {"Sign in": "साइन इन करें", "Create account": "खाता बनाएँ", "Account": "खाता", "Sign in to manage your account, or continue as a guest.": "अपना खाता संभालने के लिए साइन इन करें, या अतिथि के रूप में जारी रखें।", "Create an account to keep your settings and change your password later.": "अपनी सेटिंग रखने और बाद में पासवर्ड बदलने के लिए खाता बनाएँ।", "Your password": "आपका पासवर्ड", "Confirm password": "पासवर्ड की पुष्टि करें", "Type the password again": "पासवर्ड फिर से लिखें", "Your password is stored as a secure hash on this Scam Shield server. Never use your bank, UPI or email password here.": "आपका पासवर्ड इस Scam Shield सर्वर पर सुरक्षित हैश के रूप में रखा जाता है। यहाँ अपने बैंक, UPI या ईमेल का पासवर्ड कभी इस्तेमाल न करें।", "Incorrect email or password.": "ईमेल या पासवर्ड गलत है।", "Enter a valid email address.": "एक मान्य ईमेल पता डालें।", "Password must be 8 to 128 characters.": "पासवर्ड 8 से 128 अक्षरों का होना चाहिए।", "This password is too common. Choose a different one.": "यह पासवर्ड बहुत आम है। कोई और चुनें।", "An account with this email already exists. Try signing in.": "इस ईमेल से खाता पहले से है। साइन इन करके देखें।", "Passwords do not match.": "पासवर्ड मेल नहीं खाते।", "Too many attempts. Wait a few minutes and try again.": "बहुत ज़्यादा कोशिशें हुईं। कुछ मिनट रुककर फिर कोशिश करें।", "Could not reach the Scam Shield server. Start it with python app.py and open http://127.0.0.1:5000": "Scam Shield सर्वर से जुड़ नहीं सके। उसे python app.py से चालू करें और http://127.0.0.1:5000 खोलें।", "Something went wrong. Please try again.": "कुछ गड़बड़ हो गई। कृपया फिर कोशिश करें।", "Settings": "सेटिंग", "Close settings": "सेटिंग बंद करें", "Your account": "आपका खाता", "Signed in as": "इस खाते से साइन इन हैं", "Sign out": "साइन आउट करें", "You are using Scam Shield as a guest. Create an account or sign in to manage a password.": "आप अतिथि के रूप में Scam Shield इस्तेमाल कर रहे हैं। पासवर्ड संभालने के लिए खाता बनाएँ या साइन इन करें।", "Sign in or create account": "साइन इन करें या खाता बनाएँ", "Change password": "पासवर्ड बदलें", "Current password": "मौजूदा पासवर्ड", "New password": "नया पासवर्ड", "At least 8 characters": "कम से कम 8 अक्षर", "Confirm new password": "नए पासवर्ड की पुष्टि करें", "Update password": "पासवर्ड अपडेट करें", "Password updated. Other devices have been signed out.": "पासवर्ड बदल गया। दूसरे डिवाइस से साइन आउट कर दिया गया है।", "Current password is incorrect.": "मौजूदा पासवर्ड गलत है।", "The new password must be different from the current one.": "नया पासवर्ड मौजूदा पासवर्ड से अलग होना चाहिए।", "Your session expired. Please sign in again.": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।"});
+    Object.assign(translations.pa, {"Sign in": "ਸਾਈਨ ਇਨ ਕਰੋ", "Create account": "ਖਾਤਾ ਬਣਾਓ", "Account": "ਖਾਤਾ", "Sign in to manage your account, or continue as a guest.": "ਆਪਣਾ ਖਾਤਾ ਸੰਭਾਲਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ, ਜਾਂ ਮਹਿਮਾਨ ਵਜੋਂ ਜਾਰੀ ਰੱਖੋ।", "Create an account to keep your settings and change your password later.": "ਆਪਣੀਆਂ ਸੈਟਿੰਗਾਂ ਰੱਖਣ ਅਤੇ ਬਾਅਦ ਵਿੱਚ ਪਾਸਵਰਡ ਬਦਲਣ ਲਈ ਖਾਤਾ ਬਣਾਓ।", "Your password": "ਤੁਹਾਡਾ ਪਾਸਵਰਡ", "Confirm password": "ਪਾਸਵਰਡ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ", "Type the password again": "ਪਾਸਵਰਡ ਦੁਬਾਰਾ ਲਿਖੋ", "Your password is stored as a secure hash on this Scam Shield server. Never use your bank, UPI or email password here.": "ਤੁਹਾਡਾ ਪਾਸਵਰਡ ਇਸ Scam Shield ਸਰਵਰ ਉੱਤੇ ਸੁਰੱਖਿਅਤ ਹੈਸ਼ ਵਜੋਂ ਰੱਖਿਆ ਜਾਂਦਾ ਹੈ। ਇੱਥੇ ਆਪਣੇ ਬੈਂਕ, UPI ਜਾਂ ਈਮੇਲ ਦਾ ਪਾਸਵਰਡ ਕਦੇ ਨਾ ਵਰਤੋ।", "Incorrect email or password.": "ਈਮੇਲ ਜਾਂ ਪਾਸਵਰਡ ਗਲਤ ਹੈ।", "Enter a valid email address.": "ਇੱਕ ਠੀਕ ਈਮੇਲ ਪਤਾ ਪਾਓ।", "Password must be 8 to 128 characters.": "ਪਾਸਵਰਡ 8 ਤੋਂ 128 ਅੱਖਰਾਂ ਦਾ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ।", "This password is too common. Choose a different one.": "ਇਹ ਪਾਸਵਰਡ ਬਹੁਤ ਆਮ ਹੈ। ਕੋਈ ਹੋਰ ਚੁਣੋ।", "An account with this email already exists. Try signing in.": "ਇਸ ਈਮੇਲ ਨਾਲ ਖਾਤਾ ਪਹਿਲਾਂ ਹੀ ਹੈ। ਸਾਈਨ ਇਨ ਕਰਕੇ ਵੇਖੋ।", "Passwords do not match.": "ਪਾਸਵਰਡ ਮੇਲ ਨਹੀਂ ਖਾਂਦੇ।", "Too many attempts. Wait a few minutes and try again.": "ਬਹੁਤ ਵਾਰ ਕੋਸ਼ਿਸ਼ ਹੋ ਗਈ। ਕੁਝ ਮਿੰਟ ਰੁਕ ਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।", "Could not reach the Scam Shield server. Start it with python app.py and open http://127.0.0.1:5000": "Scam Shield ਸਰਵਰ ਨਾਲ ਜੁੜ ਨਹੀਂ ਸਕੇ। ਇਸਨੂੰ python app.py ਨਾਲ ਚਾਲੂ ਕਰੋ ਅਤੇ http://127.0.0.1:5000 ਖੋਲ੍ਹੋ।", "Something went wrong. Please try again.": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।", "Settings": "ਸੈਟਿੰਗਾਂ", "Close settings": "ਸੈਟਿੰਗਾਂ ਬੰਦ ਕਰੋ", "Your account": "ਤੁਹਾਡਾ ਖਾਤਾ", "Signed in as": "ਇਸ ਖਾਤੇ ਨਾਲ ਸਾਈਨ ਇਨ ਹੋ", "Sign out": "ਸਾਈਨ ਆਊਟ ਕਰੋ", "You are using Scam Shield as a guest. Create an account or sign in to manage a password.": "ਤੁਸੀਂ ਮਹਿਮਾਨ ਵਜੋਂ Scam Shield ਵਰਤ ਰਹੇ ਹੋ। ਪਾਸਵਰਡ ਸੰਭਾਲਣ ਲਈ ਖਾਤਾ ਬਣਾਓ ਜਾਂ ਸਾਈਨ ਇਨ ਕਰੋ।", "Sign in or create account": "ਸਾਈਨ ਇਨ ਕਰੋ ਜਾਂ ਖਾਤਾ ਬਣਾਓ", "Change password": "ਪਾਸਵਰਡ ਬਦਲੋ", "Current password": "ਮੌਜੂਦਾ ਪਾਸਵਰਡ", "New password": "ਨਵਾਂ ਪਾਸਵਰਡ", "At least 8 characters": "ਘੱਟੋ-ਘੱਟ 8 ਅੱਖਰ", "Confirm new password": "ਨਵੇਂ ਪਾਸਵਰਡ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ", "Update password": "ਪਾਸਵਰਡ ਅੱਪਡੇਟ ਕਰੋ", "Password updated. Other devices have been signed out.": "ਪਾਸਵਰਡ ਬਦਲ ਗਿਆ। ਹੋਰ ਡਿਵਾਈਸਾਂ ਤੋਂ ਸਾਈਨ ਆਊਟ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ।", "Current password is incorrect.": "ਮੌਜੂਦਾ ਪਾਸਵਰਡ ਗਲਤ ਹੈ।", "The new password must be different from the current one.": "ਨਵਾਂ ਪਾਸਵਰਡ ਮੌਜੂਦਾ ਪਾਸਵਰਡ ਤੋਂ ਵੱਖਰਾ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ।", "Your session expired. Please sign in again.": "ਤੁਹਾਡਾ ਸੈਸ਼ਨ ਖਤਮ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਸਾਈਨ ਇਨ ਕਰੋ।"});
+
+    function translateText(text, language) {
+      const dictionary = translations[language];
+      if (!dictionary) return text;
+      if (dictionary[text]) return dictionary[text];
+      let match = text.match(/^Payee UPI ID: (.+)$/);
+      if (match) return (language === 'hi' ? 'प्राप्तकर्ता की UPI ID: ' : 'ਪ੍ਰਾਪਤਕਰਤਾ ਦੀ UPI ID: ') + match[1];
+      match = text.match(/^Payee name in QR: (.+)\. Compare it with the name shown in your UPI app\.$/);
+      if (match) return (language === 'hi' ? 'QR में प्राप्तकर्ता का नाम: ' : 'QR ਵਿੱਚ ਪ੍ਰਾਪਤਕਰਤਾ ਦਾ ਨਾਂ: ') + match[1] + (language === 'hi' ? '। अपने UPI ऐप में दिख रहे नाम से मिलाएँ।' : '। ਆਪਣੀ UPI ਐਪ ਵਿੱਚ ਦਿਖਦੇ ਨਾਂ ਨਾਲ ਮਿਲਾਓ।');
+      match = text.match(/^A preset amount of ₹(.+) is embedded\. Confirm the exact amount before approving\.$/);
+      if (match) return '₹' + match[1] + (language === 'hi' ? ' की तय राशि शामिल है। मंज़ूरी से पहले सही राशि की पुष्टि करें।' : ' ਦੀ ਪਹਿਲਾਂ ਤੋਂ ਤੈਅ ਰਕਮ ਸ਼ਾਮਲ ਹੈ। ਮਨਜ਼ੂਰੀ ਤੋਂ ਪਹਿਲਾਂ ਸਹੀ ਰਕਮ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।');
+      return text;
+    }
+
+    function applyLanguage(language, remember) {
+      currentLanguage = ['en', 'hi', 'pa'].includes(language) ? language : 'en';
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement.closest('script, style, option')) continue;
+        if (!textSources.has(node)) textSources.set(node, node.nodeValue);
+        const source = textSources.get(node);
+        const match = source.match(/^(\s*)([\s\S]*?)(\s*)$/);
+        node.nodeValue = match[1] + translateText(match[2], currentLanguage) + match[3];
+      }
+      document.querySelectorAll('[placeholder], [aria-label], [title]').forEach(function (element) {
+        let sources = attributeSources.get(element);
+        if (!sources) { sources = {}; attributeSources.set(element, sources); }
+        ['placeholder', 'aria-label', 'title'].forEach(function (attribute) {
+          if (!element.hasAttribute(attribute)) return;
+          if (!(attribute in sources)) sources[attribute] = element.getAttribute(attribute);
+          element.setAttribute(attribute, translateText(sources[attribute], currentLanguage));
+        });
+      });
+      document.documentElement.lang = currentLanguage === 'en' ? 'en-IN' : currentLanguage;
+      document.title = translateText('Scam Shield | UPI payment safety check', currentLanguage);
+      document.getElementById('languageSelect').value = currentLanguage;
+      document.getElementById('entryLanguageSelect').value = currentLanguage;
+      if (remember) {
+        try { localStorage.setItem('scamShieldLanguage', currentLanguage); } catch (_) {}
+      }
+    }
+
+    function createShieldScene() {
+      if (!window.THREE) return;
+      const canvas = document.getElementById('scene');
+      let renderer;
+      try {
+        renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+      } catch (_) {
+        return;
+      }
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 50);
+      camera.position.set(0, 0, 9);
+      scene.add(new THREE.AmbientLight(0xc9f0b5, 1));
+      const keyLight = new THREE.DirectionalLight(0xe5ffbe, 2.2);
+      keyLight.position.set(-3, 5, 6);
+      scene.add(keyLight);
+      const rimLight = new THREE.PointLight(0x54d890, 10, 12);
+      rimLight.position.set(3, -1, 3);
+      scene.add(rimLight);
+
+      const shield = new THREE.Group();
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 1.35);
+      shape.lineTo(1.02, .92);
+      shape.lineTo(.9, -.1);
+      shape.quadraticCurveTo(.72, -.83, 0, -1.32);
+      shape.quadraticCurveTo(-.72, -.83, -.9, -.1);
+      shape.lineTo(-1.02, .92);
+      shape.closePath();
+      const shieldGeometry = new THREE.ExtrudeGeometry(shape, { depth: .28, bevelEnabled: true, bevelSegments: 4, steps: 1, bevelSize: .09, bevelThickness: .1 });
+      shieldGeometry.center();
+      const shieldMaterial = new THREE.MeshPhysicalMaterial({ color: 0x9fe947, metalness: .2, roughness: .2, clearcoat: 1, clearcoatRoughness: .12 });
+      shield.add(new THREE.Mesh(shieldGeometry, shieldMaterial));
+
+      const checkCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-.43, -.02, .28),
+        new THREE.Vector3(-.12, -.34, .34),
+        new THREE.Vector3(.47, .36, .34)
+      ]);
+      const check = new THREE.Mesh(new THREE.TubeGeometry(checkCurve, 24, .055, 10, false), new THREE.MeshStandardMaterial({ color: 0x17341a, roughness: .24, metalness: .14 }));
+      shield.add(check);
+
+      const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0xcaff8a, transparent: true, opacity: .43 });
+      const orbitA = new THREE.Mesh(new THREE.TorusGeometry(1.72, .009, 8, 160), orbitMaterial);
+      orbitA.rotation.set(.9, .25, .48);
+      shield.add(orbitA);
+      const orbitB = new THREE.Mesh(new THREE.TorusGeometry(2.08, .006, 8, 160), new THREE.MeshBasicMaterial({ color: 0x68d88b, transparent: true, opacity: .25 }));
+      orbitB.rotation.set(1.1, -.4, -.34);
+      shield.add(orbitB);
+      shield.position.set(3.5, -.25, -.4);
+      shield.rotation.set(.08, -.18, -.12);
+      scene.add(shield);
+
+      const pointPositions = [];
+      for (let index = 0; index < 150; index += 1) {
+        pointPositions.push((Math.random() - .5) * 11, (Math.random() - .5) * 7, (Math.random() - .5) * 4 - 1.5);
+      }
+      const pointGeometry = new THREE.BufferGeometry();
+      pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute(pointPositions, 3));
+      const points = new THREE.Points(pointGeometry, new THREE.PointsMaterial({ color: 0xb9ed9b, size: .018, transparent: true, opacity: .5 }));
+      scene.add(points);
+      const basePointPositions = new Float32Array(pointPositions);
+
+      const floaterGeometry = new THREE.BoxGeometry(.105, .105, .105);
+      const floatingBits = [
+        { desktop: [4.72, 2.12, -.9], mobile: [1.18, 2.15, -.9], phase: .2, color: 0xbaff59 },
+        { desktop: [5.08, .55, -1.3], mobile: [1.3, .45, -1.3], phase: 1.7, color: 0xcaff8a },
+        { desktop: [4.98, -1.02, -.8], mobile: [1.2, -.55, -.8], phase: 3.1, color: 0x7bdaa0 },
+        { desktop: [3.12, -2.02, -1], mobile: [-.58, -1.85, -1], phase: 4.4, color: 0xbaff59 }
+      ].map(function (item) {
+        const material = new THREE.MeshPhysicalMaterial({ color: item.color, metalness: .36, roughness: .24, clearcoat: .8, transparent: true, opacity: .74 });
+        const mesh = new THREE.Mesh(floaterGeometry, material);
+        item.mesh = mesh;
+        item.phase += Math.random() * .35;
+        scene.add(mesh);
+        return item;
+      });
+
+      function createSignalCard(accentColor) {
+        const card = new THREE.Group();
+        const shape = new THREE.Shape();
+        shape.moveTo(-.52, -.31);
+        shape.lineTo(.43, -.31);
+        shape.quadraticCurveTo(.52, -.31, .52, -.22);
+        shape.lineTo(.52, .22);
+        shape.quadraticCurveTo(.52, .31, .43, .31);
+        shape.lineTo(-.43, .31);
+        shape.quadraticCurveTo(-.52, .31, -.52, .22);
+        shape.lineTo(-.52, -.22);
+        shape.quadraticCurveTo(-.52, -.31, -.43, -.31);
+        shape.closePath();
+        const body = new THREE.Mesh(
+          new THREE.ExtrudeGeometry(shape, { depth: .1, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: .025, bevelThickness: .025 }),
+          new THREE.MeshPhysicalMaterial({ color: 0x173322, metalness: .18, roughness: .3, clearcoat: .7, transparent: true, opacity: .82 })
+        );
+        body.geometry.center();
+        card.add(body);
+
+        const faceZ = .075;
+        const accent = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .025), new THREE.MeshBasicMaterial({ color: accentColor, transparent: true, opacity: .9 }));
+        accent.position.set(-.3, .11, faceZ);
+        card.add(accent);
+        const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xd7f0d0, transparent: true, opacity: .58 });
+        [[.42, .035, .12], [.3, .025, -.01], [.36, .025, -.12]].forEach(function (line) {
+          const mesh = new THREE.Mesh(new THREE.BoxGeometry(line[0], line[1], .018), lineMaterial);
+          mesh.position.set(.13, line[2], faceZ);
+          card.add(mesh);
+        });
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(.58, .018, .02), new THREE.MeshBasicMaterial({ color: accentColor, transparent: true, opacity: .85 }));
+        edge.position.set(.2, -.22, faceZ);
+        card.add(edge);
+        return card;
+      }
+
+      const signalCards = [
+        { group: createSignalCard(0xbaff59), desktop: [4.75, 1.45, -.55], mobile: [.92, 1.65, -.55], phase: .4, scale: .68, tilt: -.16 },
+        { group: createSignalCard(0x67d9a0), desktop: [4.55, -1.75, -.25], mobile: [.82, -1.15, -.25], phase: 2.5, scale: .58, tilt: .13 }
+      ];
+      signalCards.forEach(function (card) { scene.add(card.group); });
+
+      let pointerX = 0;
+      let pointerY = 0;
+      let frame = 0;
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function resizeScene() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        camera.aspect = width / height;
+        camera.position.z = width < 760 ? 10.5 : 9;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+        shield.position.x = width < 760 ? .52 : 3.5;
+        shield.position.y = width < 760 ? .65 : -.25;
+        shield.scale.setScalar(width < 760 ? .62 : .78);
+        signalCards.forEach(function (card) {
+          const position = width < 760 ? card.mobile : card.desktop;
+          card.group.position.set(position[0], position[1], position[2]);
+          card.group.scale.setScalar(width < 760 ? card.scale * .78 : card.scale);
+          card.group.userData.baseY = position[1];
+          card.group.userData.baseRotation = card.tilt;
+        });
+        floatingBits.forEach(function (bit) {
+          const position = width < 760 ? bit.mobile : bit.desktop;
+          bit.mesh.position.set(position[0], position[1], position[2]);
+          bit.mesh.userData.baseX = position[0];
+          bit.mesh.userData.baseY = position[1];
+          bit.mesh.scale.setScalar(width < 760 ? .78 : 1);
+        });
+        renderer.render(scene, camera);
+      }
+      function animate(time) {
+        shield.rotation.y = -.18 + Math.sin(time * .00035) * .11 + pointerX * .08;
+        shield.rotation.x = .08 + pointerY * .06;
+        shield.position.y += ( (window.innerWidth < 760 ? .65 : -.25) + Math.sin(time * .0006) * .08 - shield.position.y) * .025;
+        orbitA.rotation.z = .48 + time * .00012;
+        orbitB.rotation.z = -.34 - time * .00009;
+        signalCards.forEach(function (card) {
+          const phase = time * .0007 + card.phase;
+          card.group.position.y = card.group.userData.baseY + Math.sin(phase) * .12;
+          card.group.rotation.y = card.group.userData.baseRotation + Math.sin(phase * .8) * .12 + pointerX * .025;
+          card.group.rotation.x = Math.cos(phase * .7) * .06 + pointerY * .02;
+          card.group.rotation.z = Math.sin(phase * .5) * .035;
+        });
+        floatingBits.forEach(function (bit) {
+          const phase = time * .00075 + bit.phase;
+          bit.mesh.position.x = bit.mesh.userData.baseX + Math.sin(phase * .55) * .12 + pointerX * .035;
+          bit.mesh.position.y = bit.mesh.userData.baseY + Math.sin(phase) * .18;
+          bit.mesh.rotation.x = phase * .45 + pointerY * .08;
+          bit.mesh.rotation.y = phase * .62 + pointerX * .08;
+          bit.mesh.rotation.z = Math.cos(phase * .7) * .28;
+        });
+        const pointAttribute = pointGeometry.attributes.position;
+        for (let index = 0; index < basePointPositions.length; index += 3) {
+          pointAttribute.array[index + 1] = basePointPositions[index + 1] + Math.sin(time * .00035 + index) * .055;
+        }
+        pointAttribute.needsUpdate = true;
+        points.rotation.y = time * .000018;
+        renderer.render(scene, camera);
+        if (!reducedMotion) frame = requestAnimationFrame(animate);
+      }
+      window.addEventListener('resize', resizeScene);
+      window.addEventListener('pointermove', function (event) {
+        pointerX = (event.clientX / window.innerWidth - .5) * 2;
+        pointerY = (event.clientY / window.innerHeight - .5) * 2;
+      }, { passive: true });
+      resizeScene();
+      if (!reducedMotion) frame = requestAnimationFrame(animate);
+      window.addEventListener('pagehide', function () { cancelAnimationFrame(frame); renderer.dispose(); });
+    }
+
+    const languageSelect = document.getElementById('languageSelect');
+    languageSelect.addEventListener('change', function () { applyLanguage(languageSelect.value, true); });
+    const entryLanguageSelect = document.getElementById('entryLanguageSelect');
+    entryLanguageSelect.addEventListener('change', function () { applyLanguage(entryLanguageSelect.value, true); });
+    try { applyLanguage(localStorage.getItem('scamShieldLanguage') || 'en'); } catch (_) { applyLanguage('en'); }
+    createShieldScene();
+    initializeSharedScamDatabase();
+
+    const reviewsDialog = document.getElementById('reviewsDialog');
+    document.getElementById('reviewsOpen').addEventListener('click', function () { reviewsDialog.showModal(); });
+    document.getElementById('reviewsClose').addEventListener('click', function () { reviewsDialog.close(); });
+    reviewsDialog.addEventListener('click', function (event) {
+      if (event.target === reviewsDialog) reviewsDialog.close();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && reviewsDialog.open) reviewsDialog.close();
+    });
+
+    const helpDialog = document.getElementById('helpDialog');
+    document.getElementById('helpOpen').addEventListener('click', function () { helpDialog.showModal(); });
+    document.getElementById('helpClose').addEventListener('click', function () { helpDialog.close(); });
+    helpDialog.addEventListener('click', function (event) {
+      if (event.target === helpDialog) helpDialog.close();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && helpDialog.open) helpDialog.close();
+    });
+
+    const chatDialog = document.getElementById('chatDialog');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatStatus = document.getElementById('chatStatus');
+    const chatSend = document.getElementById('chatSend');
+    const chatHistory = [];
+    let chatPending = false;
+
+    document.getElementById('assistantOpen').addEventListener('click', function () {
+      chatDialog.showModal();
+      chatInput.focus();
+    });
+    document.getElementById('chatClose').addEventListener('click', function () { chatDialog.close(); });
+    chatDialog.addEventListener('click', function (event) {
+      if (event.target === chatDialog) chatDialog.close();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && chatDialog.open) chatDialog.close();
+    });
+
+    function appendChatMessage(role, text) {
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-message ' + role;
+      bubble.textContent = text;
+      chatMessages.appendChild(bubble);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function chatErrorMessage(code) {
+      if (code === 'assistant_not_configured') return translateText('The AI service is not configured on the server. Set OPENAI_API_KEY and try again.', currentLanguage);
+      if (code === 'rate_limited') return translateText('You have sent several questions quickly. Please wait a minute and try again.', currentLanguage);
+      return translateText('The AI assistant is temporarily unavailable. Try again shortly.', currentLanguage);
+    }
+
+    chatForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (chatPending) return;
+      const message = chatInput.value.trim();
+      if (!message) {
+        chatStatus.textContent = translateText('Please enter a question first.', currentLanguage);
+        return;
+      }
+
+      chatPending = true;
+      chatStatus.textContent = translateText('Thinking...', currentLanguage);
+      chatSend.disabled = true;
+      chatInput.value = '';
+      appendChatMessage('user', message);
+      const displayedScore = document.getElementById('scoreText').textContent;
+      const score = displayedScore.indexOf('—') === 0 ? null : Number(document.querySelector('.meter').getAttribute('aria-valuenow'));
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message,
+            history: chatHistory.slice(-8),
+            language: currentLanguage,
+            context: { tab: activeTab, score: score, status: document.getElementById('statusTitle').textContent }
+          })
+        });
+        const data = await response.json();
+        if (!response.ok || typeof data.reply !== 'string') {
+          appendChatMessage('assistant', chatErrorMessage(data.error));
+        } else {
+          appendChatMessage('assistant', data.reply);
+          chatHistory.push({ role: 'user', content: message });
+          chatHistory.push({ role: 'assistant', content: data.reply });
+          if (chatHistory.length > 8) chatHistory.splice(0, chatHistory.length - 8);
+        }
+        chatStatus.textContent = '';
+      } catch (_) {
+        appendChatMessage('assistant', chatErrorMessage('assistant_unavailable'));
+        chatStatus.textContent = '';
+      } finally {
+        chatPending = false;
+        chatSend.disabled = false;
+        chatInput.focus();
+      }
+    });
+
+    const reviewForm = document.getElementById('reviewForm');
+    const reviewStatus = document.getElementById('reviewStatus');
+    const reviewList = document.getElementById('reviewList');
+    const reviewAverage = document.getElementById('reviewAverage');
+    const reviewCount = document.getElementById('reviewCount');
+
+    function renderReviews(data) {
+      reviewAverage.textContent = data.count ? Number(data.average).toFixed(1) : '—';
+      reviewCount.textContent = data.count + ' ' + translateText(data.count === 1 ? 'review' : 'reviews', currentLanguage);
+      reviewList.replaceChildren();
+      if (!data.reviews.length) {
+        const empty = document.createElement('p');
+        empty.className = 'review-empty';
+        empty.textContent = translateText('No reviews yet. Be the first to share feedback.', currentLanguage);
+        reviewList.appendChild(empty);
+        return;
+      }
+      data.reviews.forEach(function (review) {
+        const item = document.createElement('article');
+        item.className = 'review-item';
+        const header = document.createElement('div');
+        header.className = 'review-item-head';
+        const rating = document.createElement('span');
+        rating.className = 'review-item-rating';
+        rating.textContent = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
+        rating.setAttribute('aria-label', review.rating + ' / 5');
+        const date = document.createElement('time');
+        date.textContent = review.created_at.slice(0, 10);
+        header.append(rating, date);
+        item.appendChild(header);
+        const comment = document.createElement('p');
+        comment.textContent = review.comment || translateText('Rating only', currentLanguage);
+        item.appendChild(comment);
+        reviewList.appendChild(item);
+      });
+    }
+
+    async function loadReviews() {
+      try {
+        const response = await fetch('/api/reviews');
+        if (!response.ok) throw new Error('Review request failed');
+        renderReviews(await response.json());
+      } catch (_) {
+        reviewList.textContent = translateText('Could not load reviews.', currentLanguage);
+      }
+    }
+
+    reviewForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const selectedRating = reviewForm.querySelector('input[name="rating"]:checked');
+      if (!selectedRating) {
+        reviewStatus.textContent = translateText('Please choose a rating from 1 to 5.', currentLanguage);
+        return;
+      }
+      const submitButton = reviewForm.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      reviewStatus.textContent = '';
+      try {
+        const response = await fetch('/api/reviews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rating: Number(selectedRating.value), comment: document.getElementById('reviewComment').value })
+        });
+        if (!response.ok) throw new Error('Review submission failed');
+        reviewForm.reset();
+        reviewStatus.textContent = translateText('Review submitted. Thanks for your feedback.', currentLanguage);
+        await loadReviews();
+      } catch (_) {
+        reviewStatus.textContent = translateText('Could not submit your review. Try again.', currentLanguage);
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+
+    const authScreen = document.getElementById('authScreen');
+    const appShell = document.getElementById('appShell');
+    const authForm = document.getElementById('authForm');
+    const authSubmit = document.getElementById('authSubmit');
+    let enteringChecker = false;
+
+    function revealChecker() {
+      authScreen.hidden = true;
+      authScreen.classList.remove('is-exiting');
+      appShell.hidden = false;
+      appShell.inert = false;
+      appShell.removeAttribute('aria-hidden');
+      appShell.classList.add('is-entering');
+      window.setTimeout(function () { appShell.classList.remove('is-entering'); }, 700);
+      document.getElementById('upi').focus({ preventScroll: true });
+      loadReviews();
+      enteringChecker = false;
+    }
+
+    function enterChecker(animate) {
+      if (enteringChecker) return;
+      enteringChecker = true;
+      if (animate) {
+        authSubmit.disabled = true;
+        authSubmit.classList.add('is-loading');
+        const label = document.getElementById('authSubmitLabel');
+        label.textContent = translateText('Opening your checker...', currentLanguage);
+        const spinner = document.createElement('span');
+        spinner.className = 'auth-spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        authSubmit.appendChild(spinner);
+      }
+      authScreen.classList.add('is-exiting');
+      window.setTimeout(revealChecker, animate ? 440 : 420);
+    }
+
+    // ---------- Accounts: talks to /api/auth/* on the Flask backend ----------
+    const AUTH_ERRORS = {
+      invalid_credentials: 'Incorrect email or password.',
+      invalid_email: 'Enter a valid email address.',
+      weak_length: 'Password must be 8 to 128 characters.',
+      common_password: 'This password is too common. Choose a different one.',
+      email_taken: 'An account with this email already exists. Try signing in.',
+      too_many_attempts: 'Too many attempts. Wait a few minutes and try again.',
+      wrong_current: 'Current password is incorrect.',
+      same_password: 'The new password must be different from the current one.',
+      not_signed_in: 'Your session expired. Please sign in again.',
+      server_unreachable: 'Could not reach the Scam Shield server. Start it with python app.py and open http://127.0.0.1:5000',
+      generic: 'Something went wrong. Please try again.'
+    };
+    const authError = document.getElementById('authError');
+    const modeSignIn = document.getElementById('modeSignIn');
+    const modeSignUp = document.getElementById('modeSignUp');
+    let authMode = 'signin';
+    let currentUser = null;   // email when signed in, null for a guest
+
+    // Show a message in the chosen language (keeps working when the language is switched later).
+    function showNote(element, key) {
+      element.textContent = key || '';
+      if (key) applyLanguage(currentLanguage);
+    }
+
+    async function authRequest(path, body) {
+      let response;
+      try {
+        response = await fetch('/api/auth/' + path, {
+          method: body ? 'POST' : 'GET',
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          credentials: 'same-origin',
+          body: body ? JSON.stringify(body) : undefined
+        });
+      } catch (_) {
+        return { ok: false, error: 'server_unreachable' };
+      }
+      let data = {};
+      try { data = await response.json(); } catch (_) {}
+      return { ok: response.ok, status: response.status, data: data, error: data.error };
+    }
+
+    function authMessage(code) { return AUTH_ERRORS[code] || AUTH_ERRORS.generic; }
+
+    function updateAccountUi() {
+      const signedIn = Boolean(currentUser);
+      document.getElementById('accountSignedIn').hidden = !signedIn;
+      document.getElementById('accountGuest').hidden = signedIn;
+      document.getElementById('passwordForm').hidden = !signedIn;
+      document.getElementById('accountEmail').textContent = currentUser || '';
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      const signUp = mode === 'signup';
+      modeSignIn.setAttribute('aria-selected', String(!signUp));
+      modeSignUp.setAttribute('aria-selected', String(signUp));
+      document.getElementById('confirmWrap').hidden = !signUp;
+      document.getElementById('authConfirm').required = signUp;
+      document.getElementById('authPassword').autocomplete = signUp ? 'new-password' : 'current-password';
+      showNote(document.getElementById('authIntro'), signUp
+        ? 'Create an account to keep your settings and change your password later.'
+        : 'Sign in to manage your account, or continue as a guest.');
+      showNote(document.getElementById('authSubmitLabel'), signUp ? 'Create account' : 'Sign in');
+      showNote(authError, '');
+    }
+    modeSignIn.addEventListener('click', function () { setAuthMode('signin'); });
+    modeSignUp.addEventListener('click', function () { setAuthMode('signup'); });
+
+    authForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (enteringChecker || authSubmit.disabled) return;
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      showNote(authError, '');
+      if (authMode === 'signup' && password !== document.getElementById('authConfirm').value) {
+        showNote(authError, 'Passwords do not match.');
+        return;
+      }
+      authSubmit.disabled = true;
+      const result = await authRequest(authMode === 'signup' ? 'register' : 'login', { email: email, password: password });
+      authSubmit.disabled = false;
+      if (!result.ok) { showNote(authError, authMessage(result.error)); return; }
+      currentUser = result.data.email;
+      updateAccountUi();
+      document.getElementById('authPassword').value = '';
+      document.getElementById('authConfirm').value = '';
+      enterChecker(true);
+    });
+
+    document.getElementById('guestContinue').addEventListener('click', function () {
+      currentUser = null;
+      updateAccountUi();
+      enterChecker(false);
+    });
+
+    // Already signed in from an earlier visit? Skip the login screen.
+    (async function restoreSession() {
+      const result = await authRequest('me');
+      if (result.ok && result.data && result.data.email) {
+        currentUser = result.data.email;
+        updateAccountUi();
+        enterChecker(false);
+      }
+    })();
+
+    // ---------- Settings dialog ----------
+    const settingsDialog = document.getElementById('settingsDialog');
+    const passwordForm = document.getElementById('passwordForm');
+    const pwStatus = document.getElementById('pwStatus');
+    const pwSubmit = document.getElementById('pwSubmit');
+
+    function openSettings() {
+      passwordForm.reset();
+      pwStatus.classList.remove('is-success');
+      showNote(pwStatus, '');
+      updateAccountUi();
+      settingsDialog.showModal();
+    }
+    document.getElementById('settingsOpen').addEventListener('click', openSettings);
+    document.getElementById('settingsClose').addEventListener('click', function () { settingsDialog.close(); });
+    settingsDialog.addEventListener('click', function (event) { if (event.target === settingsDialog) settingsDialog.close(); });
+    settingsDialog.addEventListener('close', function () { passwordForm.reset(); });
+
+    document.getElementById('signOutBtn').addEventListener('click', async function () {
+      await authRequest('logout', {});
+      window.location.reload();
+    });
+    document.getElementById('settingsSignInBtn').addEventListener('click', function () { window.location.reload(); });
+
+    passwordForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      pwStatus.classList.remove('is-success');
+      showNote(pwStatus, '');
+      const current = document.getElementById('pwCurrent').value;
+      const next = document.getElementById('pwNew').value;
+      const confirm = document.getElementById('pwConfirm').value;
+      if (!current) { showNote(pwStatus, 'Current password is incorrect.'); return; }
+      if (next.length < 8 || next.length > 128) { showNote(pwStatus, 'Password must be 8 to 128 characters.'); return; }
+      if (next !== confirm) { showNote(pwStatus, 'Passwords do not match.'); return; }
+      if (next === current) { showNote(pwStatus, 'The new password must be different from the current one.'); return; }
+      pwSubmit.disabled = true;
+      const result = await authRequest('change-password', { current_password: current, new_password: next });
+      pwSubmit.disabled = false;
+      if (!result.ok) { showNote(pwStatus, authMessage(result.error)); return; }
+      passwordForm.reset();
+      pwStatus.classList.add('is-success');
+      showNote(pwStatus, 'Password updated. Other devices have been signed out.');
+    });
+
+    function selectTab(name) {
+      activeTab = name;
+      tabs.forEach(function (tab) {
+        const selected = tab.dataset.tab === name;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+      });
+      panes.forEach(function (pane) {
+        document.getElementById('pane-' + pane).classList.toggle('hidden', pane !== name);
+      });
+      stopCamera();
+      analyzeActive();
+    }
+
+    function addSignal(signals, text, points) {
+      signals.push({ text: text, points: points });
+    }
+
+    function findSharedScam(kind, value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) return null;
+      return sharedScamEntries.find(function (entry) {
+        return entry.kind === kind && String(entry.value || '').toLowerCase() === normalized && Number(entry.reports) >= 3;
+      }) || null;
+    }
+
+    function addSharedScamSignals(signals, kind, value) {
+      const match = findSharedScam(kind, value);
+      if (!match) return false;
+      const findingKey = {
+        upi: 'This UPI ID appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.',
+        domain: 'This domain appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.',
+        phone: 'This phone number appears in the scam-report database ({reports} reports). Verify independently and do not pay based on this result alone.'
+      }[kind];
+      const finding = translateText(findingKey, currentLanguage).replace('{reports}', String(match.reports));
+      addSignal(signals, finding, 80);
+      return true;
+    }
+
+    async function initializeSharedScamDatabase() {
+      let localEntries = [];
+      try {
+        const configResponse = await fetch('/api/config', { cache: 'no-store' });
+        if (!configResponse.ok) return;
+        const config = await configResponse.json();
+        localEntries = Array.isArray(config.localScams) ? config.localScams : [];
+        sharedScamEntries = localEntries;
+        const settings = config.supabase;
+        if (!settings || !settings.url || !settings.anonKey || !window.supabase || !window.supabase.createClient) {
+          if (!appShell.hidden && activeTab !== 'reviews') analyzeActive();
+          return;
+        }
+
+        sharedScamClient = window.supabase.createClient(settings.url, settings.anonKey);
+
+        async function refreshSharedScams() {
+          const cloudRows = [];
+          for (let offset = 0; offset < 5000; offset += 1000) {
+            const result = await sharedScamClient
+              .from('scams')
+              .select('id,kind,value,reports')
+              .gte('reports', 3)
+              .order('id', { ascending: true })
+              .range(offset, offset + 999);
+            if (result.error) throw result.error;
+            const rows = Array.isArray(result.data) ? result.data : [];
+            cloudRows.push.apply(cloudRows, rows);
+            if (rows.length < 1000) break;
+          }
+          const merged = new Map();
+          sharedScamEntries.concat(cloudRows).forEach(function (entry) {
+            const key = entry.kind + ':' + String(entry.value || '').toLowerCase();
+            const existing = merged.get(key);
+            if (!existing || Number(entry.reports) > Number(existing.reports)) merged.set(key, entry);
+          });
+          sharedScamEntries = Array.from(merged.values());
+          if (!appShell.hidden && activeTab !== 'reviews') analyzeActive();
+        }
+
+        await refreshSharedScams();
+        const liveLabel = document.querySelector('.live');
+        const liveText = liveLabel.lastChild;
+        liveText.nodeValue = ' Live shared analysis';
+        textSources.set(liveText, ' Live shared analysis');
+        applyLanguage(currentLanguage);
+        sharedScamClient
+          .channel('scam-shield-scam-updates')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'scams' }, function () {
+            refreshSharedScams().catch(function () {});
+          })
+          .subscribe();
+      } catch (_) {
+        sharedScamEntries = localEntries;
+        if (!appShell.hidden && activeTab !== 'reviews') analyzeActive();
+      }
+    }
+
+    function analyzeUpi() {
+      const handle = document.getElementById('upi').value.trim();
+      const amountText = document.getElementById('amount').value.trim().replace(/,/g, '');
+      const signals = [];
+      if (!handle && !amountText) return { score: 0, signals: [], empty: true };
+      if (handle && !/^[\w.\-]{2,256}@[\w.-]{2,64}$/.test(handle)) addSignal(signals, 'This does not look like a standard UPI ID. Recheck it against the recipient’s details.', 25);
+      if (handle) addSharedScamSignals(signals, 'upi', handle);
+      if (/(collect|request|pay|upi|secure|support|help|refund|verify|kyc)/i.test(handle)) addSignal(signals, 'The handle contains payment or support-related wording. Confirm it independently; a name in a UPI ID is not proof of identity.', 20);
+      if (/\.(com|in|net|org)@/i.test(handle)) addSignal(signals, 'The handle includes a web-domain-like name. Confirm the exact payee in your UPI app before paying.', 20);
+      if (amountText && (!/^\d+(\.\d{1,2})?$/.test(amountText) || Number(amountText) <= 0)) addSignal(signals, 'The amount is not a valid positive number. Check it before proceeding.', 20);
+      if (amountText && Number(amountText) >= 50000) addSignal(signals, 'This is a high-value transfer. Verify the recipient through a separate trusted channel.', 15);
+      if (!signals.length) addSignal(signals, 'No obvious format warning found. This does not verify the recipient or guarantee the payment is safe.', 0);
+      return { score: scoreSignals(signals), signals: signals };
+    }
+
+    function analyzeMessage(text) {
+      const signals = [];
+      if (/\b(urgent|immediately|within\s+\d+\s+(hour|minute)|account.{0,20}(block|suspend)|last warning)\b/i.test(text)) addSignal(signals, 'Creates urgency or threatens account restrictions to rush a decision.', 22);
+      if (/\b(otp|one[- ]time password|upi pin|pin|password|cvv)\b/i.test(text)) addSignal(signals, 'Mentions a PIN, OTP, password, or CVV. Never share these; a legitimate payer does not need them to send you money.', 36);
+      if (/\b(collect request|payment request|approve.{0,20}(request|payment)|request.{0,20}(money|payment))\b/i.test(text)) addSignal(signals, 'May be asking you to approve a collect request. Approving can authorize money to leave your account.', 38);
+      if (/\b(kyc|know your customer|re-?activate|verification link|update.{0,20}(account|pan|aadhaar))\b/i.test(text)) addSignal(signals, 'Requests KYC or account verification. Use your bank’s official app or website, not a message link.', 25);
+      if (/\b(refund|receive money|cashback|prize|won|reward)\b/i.test(text) && /\b(scan|qr|pin|approve|pay|fee|collect)\b/i.test(text)) addSignal(signals, 'Combines a reward or refund claim with a scan, payment, or approval. Receiving money does not require your UPI PIN.', 32);
+      if (/\b(screen share|remote access|anydesk|teamviewer|install this app)\b/i.test(text)) addSignal(signals, 'Asks for remote access or an unfamiliar app. This can expose your screen and banking activity.', 36);
+      const reportedUpiIds = text.match(/[\w.\-]{2,256}@[\w.-]{2,64}/g) || [];
+      const reportedPhones = text.match(/\b[6-9]\d{9}\b/g) || [];
+      const reportedUrls = text.match(/(?:https?:\/\/|www\.)\S+/gi) || [];
+      reportedUpiIds.slice(0, 3).forEach(function (value) { addSharedScamSignals(signals, 'upi', value); });
+      reportedPhones.slice(0, 3).forEach(function (value) { addSharedScamSignals(signals, 'phone', value); });
+      reportedUrls.slice(0, 3).forEach(function (value) {
+        try {
+          const url = new URL(value.match(/^https?:\/\//i) ? value : 'https://' + value);
+          addSharedScamSignals(signals, 'domain', url.hostname.replace(/^www\./i, ''));
+        } catch (_) {}
+      });
+      if (!signals.length && text.trim()) addSignal(signals, 'No obvious scam phrases found. Check the sender and verify any request using a trusted contact method.', 0);
+      return { score: scoreSignals(signals), signals: signals };
+    }
+
+    function analyzeLink(value) {
+      const signals = [];
+      if (!value.trim()) return { score: 0, signals: [], empty: true };
+      let parsed;
+      try { parsed = new URL(value.match(/^https?:\/\//i) ? value : 'https://' + value); }
+      catch (_) { addSignal(signals, 'This does not appear to be a valid web address.', 25); return { score: scoreSignals(signals), signals: signals }; }
+      addSharedScamSignals(signals, 'domain', parsed.hostname.replace(/^www\./i, ''));
+      if (parsed.protocol !== 'https:') addSignal(signals, 'This link does not use HTTPS. Do not enter payment or login details.', 25);
+      if (parsed.username || parsed.password) addSignal(signals, 'The address contains embedded login information, a technique sometimes used to disguise the destination.', 35);
+      if (parsed.hostname.startsWith('xn--') || /[\u0400-\u04ff\u0500-\u052f]/.test(parsed.hostname)) addSignal(signals, 'The domain uses characters that may be visually confused with Latin letters. Check it carefully.', 30);
+      if (/bit\.ly|tinyurl\.com|t\.co|is\.gd|cutt\.ly|rb\.gy/i.test(parsed.hostname)) addSignal(signals, 'A shortened link hides its final destination. Avoid opening unexpected payment links.', 28);
+      if (/paytm|phonepe|googlepay|gpay|bhim|sbi|hdfc|icici|axis|amazon/i.test(parsed.hostname) && !/(^|\.)(paytm\.com|phonepe\.com|google\.com|bhimupi\.org|sbi\.co\.in|hdfcbank\.com|icicibank\.com|axisbank\.com|amazon\.in)$/i.test(parsed.hostname)) addSignal(signals, 'The domain contains a familiar financial brand name, but may not be its official domain. Verify the exact hostname.', 35);
+      if (!signals.length) addSignal(signals, 'No obvious URL pattern warning found. The site has not been reputation-checked; do not trust a link just because it looks familiar.', 0);
+      return { score: scoreSignals(signals), signals: signals };
+    }
+
+    function scoreSignals(signals) {
+      return Math.min(100, signals.reduce(function (total, signal) { return total + signal.points; }, 0));
+    }
+
+    function inspectPaymentUri(text) {
+      const lower = text.toLowerCase();
+      const signals = [];
+      if (lower.startsWith('upi://')) {
+        const query = text.slice(text.indexOf('?') + 1);
+        const params = new URLSearchParams(query);
+        const payee = params.get('pn');
+        const handle = params.get('pa');
+        const amount = params.get('am');
+        addSignal(signals, 'This UPI QR is a payment instruction. Scanning it can send money out; you cannot receive money by scanning a QR.', 35);
+        if (amount) addSignal(signals, 'A preset amount of ₹' + amount + ' is embedded. Confirm the exact amount before approving.', 18);
+        if (params.get('mode') === '04' || /collect|request/i.test(lower)) addSignal(signals, 'This may be a collect request. Never approve a request you did not initiate.', 35);
+        if (handle) addSignal(signals, 'Payee UPI ID: ' + handle, 0);
+        if (handle) addSharedScamSignals(signals, 'upi', handle);
+        if (payee) addSignal(signals, 'Payee name in QR: ' + payee + '. Compare it with the name shown in your UPI app.', 0);
+      } else if (/^https?:/i.test(text)) {
+        return analyzeLink(text);
+      } else {
+        addSignal(signals, 'This QR does not contain a recognizable UPI payment link. Do not follow instructions shown by an unknown QR.', 12);
+      }
+      return { score: scoreSignals(signals), signals: signals };
+    }
+
+    function renderResult(result) {
+      const signalsNode = document.getElementById('signals');
+      const score = result.score;
+      resultPanel.classList.remove('risk-low', 'risk-caution', 'risk-high');
+      if (result.empty) {
+        document.getElementById('statusIcon').textContent = '—';
+        document.getElementById('statusTitle').textContent = 'Ready to check';
+        document.getElementById('statusText').textContent = 'Enter payment details to begin.';
+        document.getElementById('scoreText').textContent = '— / 100';
+        document.querySelector('.meter').setAttribute('aria-valuenow', '0');
+        document.getElementById('meterFill').style.width = '0%';
+        signalsNode.className = 'empty';
+        signalsNode.textContent = 'Add a UPI ID, message, link, or QR code. You will see findings here as you type.';
+        applyLanguage(currentLanguage);
+        return;
+      }
+      let title = 'No obvious warning';
+      let text = 'This is not a verification or safety guarantee.';
+      let icon = '✓';
+      if (score >= 55) { resultPanel.classList.add('risk-high'); title = 'High risk signals'; text = 'Do not approve until independently verified.'; icon = '!'; }
+      else if (score >= 25) { resultPanel.classList.add('risk-caution'); title = 'Review carefully'; text = 'Pause and verify using a trusted channel.'; icon = '!'; }
+      else resultPanel.classList.add('risk-low');
+      document.getElementById('statusIcon').textContent = icon;
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusText').textContent = text;
+      document.getElementById('scoreText').textContent = score + ' / 100';
+      document.querySelector('.meter').setAttribute('aria-valuenow', String(score));
+      document.getElementById('meterFill').style.width = score + '%';
+      signalsNode.className = '';
+      signalsNode.replaceChildren();
+      const list = document.createElement('ul');
+      result.signals.forEach(function (signal) {
+        const item = document.createElement('li');
+        item.textContent = signal.text;
+        list.appendChild(item);
+      });
+      signalsNode.appendChild(list);
+      applyLanguage(currentLanguage);
+    }
+
+    function analyzeActive() {
+      let result;
+      if (activeTab === 'upi') result = analyzeUpi();
+      else if (activeTab === 'message') {
+        const text = document.getElementById('message').value;
+        result = text.trim() ? analyzeMessage(text) : { score: 0, signals: [], empty: true };
+      } else if (activeTab === 'link') result = analyzeLink(document.getElementById('link').value);
+      else result = lastQrText ? inspectPaymentUri(lastQrText) : { score: 0, signals: [], empty: true };
+      renderResult(result);
+    }
+
+    function stopCamera() {
+      if (scanFrame) cancelAnimationFrame(scanFrame);
+      scanFrame = null;
+      if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+      stream = null;
+      document.getElementById('camera').srcObject = null;
+      document.getElementById('camera').style.display = 'none';
+      document.getElementById('cameraStart').classList.remove('hidden');
+      document.getElementById('cameraStop').classList.add('hidden');
+    }
+
+    async function startCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        lastQrText = '';
+        renderResult({ score: 0, signals: [{ text: 'Camera access is unavailable here. Open this page on HTTPS or localhost, or upload a QR image.', points: 0 }] });
+        return;
+      }
+      if (typeof jsQR === 'undefined') {
+        renderResult({ score: 0, signals: [{ text: 'The QR reader library did not load. Check your connection or upload a QR image after it becomes available.', points: 0 }] });
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        const video = document.getElementById('camera');
+        video.srcObject = stream;
+        video.style.display = 'block';
+        await video.play();
+        document.getElementById('cameraStart').classList.add('hidden');
+        document.getElementById('cameraStop').classList.remove('hidden');
+        scanCameraFrame();
+      } catch (_) {
+        renderResult({ score: 0, signals: [{ text: 'Camera permission was denied or the camera is unavailable. You can upload a QR image instead.', points: 0 }] });
+        stopCamera();
+      }
+    }
+
+    function scanCameraFrame() {
+      const video = document.getElementById('camera');
+      if (!stream || video.readyState < 2) { scanFrame = requestAnimationFrame(scanCameraFrame); return; }
+      const canvas = document.getElementById('qrCanvas');
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const code = jsQR(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data !== lastQrText) {
+        lastQrText = code.data;
+        analyzeActive();
+      }
+      scanFrame = requestAnimationFrame(scanCameraFrame);
+    }
+
+    async function readQrFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        renderResult({ score: 0, signals: [{ text: 'Choose an image file containing a QR code.', points: 0 }] });
+        return;
+      }
+      if (typeof jsQR === 'undefined') {
+        renderResult({ score: 0, signals: [{ text: 'The QR reader library did not load. Check your internet connection and try again.', points: 0 }] });
+        return;
+      }
+      const imageUrl = URL.createObjectURL(file);
+      try {
+        const image = new Image();
+        image.src = imageUrl;
+        await image.decode();
+        const canvas = document.getElementById('qrCanvas');
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        context.drawImage(image, 0, 0);
+        const code = jsQR(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+        if (!code) {
+          lastQrText = '';
+          renderResult({ score: 0, signals: [{ text: 'No QR code was found. Try a sharper, well-lit image.', points: 0 }] });
+          return;
+        }
+        lastQrText = code.data;
+        analyzeActive();
+      } catch (_) {
+        renderResult({ score: 0, signals: [{ text: 'Could not read that image. Try another image file.', points: 0 }] });
+      } finally {
+        URL.revokeObjectURL(imageUrl);
+      }
+    }
+
+    tabs.forEach(function (tab) { tab.addEventListener('click', function () { selectTab(tab.dataset.tab); }); });
+    document.querySelectorAll('#upi, #amount, #message, #link').forEach(function (input) { input.addEventListener('input', analyzeActive); });
+    document.getElementById('qrFile').addEventListener('change', readQrFile);
+    document.getElementById('cameraStart').addEventListener('click', startCamera);
+    document.getElementById('cameraStop').addEventListener('click', stopCamera);
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stopCamera(); });
+    document.querySelector('.tabs').addEventListener('keydown', function (event) {
+      const currentIndex = tabs.indexOf(document.activeElement);
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        const offset = event.key === 'ArrowRight' ? 1 : -1;
+        const nextTab = tabs[(currentIndex + offset + tabs.length) % tabs.length];
+        nextTab.focus();
+        selectTab(nextTab.dataset.tab);
+      }
+    });
+  </script>
+</body>
+</html>
